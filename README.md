@@ -4,7 +4,9 @@
 
 \## Thành viên
 
-\- Tue Anh Nguyen
+\- Nguyễn Thị Tuệ Anh
+\- Đặng Thị Lan Oanh
+\- Nguyễn Thu Huyền
 
 
 
