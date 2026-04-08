@@ -1,4 +1,37 @@
 package common;
 
-public class CommandType {
+import java.io.Serializable;
+
+public enum CommandType implements Serializable {
+    // AUTHENTICATION
+    LOGIN,
+    LOGOUT,
+    REGISTER,
+
+    // ITEM MANAGEMENT
+    GET_ITEMS,
+    GET_ACTIVE_ITEMS,
+    GET_ITEM_DETAIL,
+    CREATE_ITEM,
+    END_AUCTION,
+    DELETE_ITEM,
+
+    // BIDDING
+    PLACE_BID,
+    GET_BID_HISTORY,
+
+    // AUTO BID
+    SET_AUTO_BID,
+    CANCEL_AUTO_BID,
+    GET_AUTO_BID_STATUS,
+
+    // ADMIN
+    GET_ALL_USERS,
+    GET_ALL_BIDS,
+    GET_SYSTEM_STATS,
+
+    // SYSTEM
+    KEEP_ALIVE,
+    DISCONNECT
 }
+
