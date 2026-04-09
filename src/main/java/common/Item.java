@@ -3,10 +3,9 @@ package common;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class Item implements Serializable {
+public abstract class Item extends Entity  {
     private static final long serialVersionUID = 1L;
 
-    private String itemId;
     private String name;
     private String description;
     private double startingPrice;
@@ -22,7 +21,7 @@ public class Item implements Serializable {
     private String imageUrl;
 
     public Item() {
-        this.itemId = java.util.UUID.randomUUID().toString();
+        this.setId(java.util.UUID.randomUUID().toString());
         this.status = "PENDING";
         this.bidCount = 0;
     }
@@ -36,10 +35,6 @@ public class Item implements Serializable {
         this.startTime = LocalDateTime.now();
         this.endTime = startTime.plusSeconds(durationSeconds);
     }
-
-    // Getters and Setters
-    public String getItemId() { return itemId; }
-    public void setItemId(String itemId) { this.itemId = itemId; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

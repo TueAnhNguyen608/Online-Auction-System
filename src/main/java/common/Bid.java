@@ -1,13 +1,12 @@
 
-package com.example.auctionsystem.common;
+package common;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class Bid implements Serializable {
+public abstract class Bid extends Entity {
     private static final long serialVersionUID = 1L;
 
-    private String bidId;
     private String itemId;
     private String itemName;
     private String bidderId;
@@ -18,7 +17,7 @@ public class Bid implements Serializable {
     private boolean isWinning;
 
     public Bid() {
-        this.bidId = java.util.UUID.randomUUID().toString();
+        this.setId(java.util.UUID.randomUUID().toString());
         this.bidTime = LocalDateTime.now();
         this.isAutoBid = false;
         this.isWinning = false;
@@ -35,10 +34,6 @@ public class Bid implements Serializable {
         this(itemId, bidderId, amount);
         this.bidderName = bidderName;
     }
-
-    // Getters and Setters
-    public String getBidId() { return bidId; }
-    public void setBidId(String bidId) { this.bidId = bidId; }
 
     public String getItemId() { return itemId; }
     public void setItemId(String itemId) { this.itemId = itemId; }

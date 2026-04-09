@@ -3,10 +3,9 @@ package common;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class User implements Serializable {
+public abstract class User extends Entity {
     private static final long serialVersionUID = 1L;
 
-    private String userId;
     private String username;
     private String password;
     private String email;
@@ -16,7 +15,7 @@ public class User implements Serializable {
     private boolean isActive;
 
     public User() {
-        this.userId = java.util.UUID.randomUUID().toString();
+        this.setId(java.util.UUID.randomUUID().toString());
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
         this.balance = 0.0;
@@ -29,11 +28,6 @@ public class User implements Serializable {
         this.email = email;
         this.role = role;
     }
-
-    // Getters and Setters
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
