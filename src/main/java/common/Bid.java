@@ -4,7 +4,7 @@ package common;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public abstract class Bid extends Entity {
+public class Bid extends Entity {
     private static final long serialVersionUID = 1L;
 
     private String itemId;

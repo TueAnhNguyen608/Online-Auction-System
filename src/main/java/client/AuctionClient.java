@@ -1,0 +1,58 @@
+package client;
+
+import java.io.*;
+import java.net.*;
+import com.google.gson.Gson;
+import common.*;
+
+public class AuctionClient {
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
+    private Gson gson = new Gson();
+
+    public void connect(String host, int port) throws IOException {
+        socket = new Socket(host, port);
+        out = new PrintWriter(socket.getOutputStream(), true);
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        System.out.println("✅ Connected to server");
+    }
+
+    public ResponseMessage sendRequest(CommandType command, Object data) throws IOException {
+        Request request = new Request(command, data);
+        String jsonRequest = gson.toJson(request);
+        out.println(jsonRequest);
+
+        String jsonResponse = in.readLine();
+        return gson.fromJson(jsonResponse, ResponseMessage.class);
+    }
+
+    public ResponseMessage login(String username, String password) throws IOException {
+        return sendRequest(CommandType.LOGIN, new Object[]{username, password});
+    }
+
+    public ResponseMessage register(User user) throws IOException {
+        return sendRequest(CommandType.REGISTER, user);
+    }
+
+    public ResponseMessage getActiveItems() throws IOException {
+        return sendRequest(CommandType.GET_ACTIVE_ITEMS, null);
+    }
+
+    public ResponseMessage createItem(Item item) throws IOException {
+        return sendRequest(CommandType.CREATE_ITEM, item);
+    }
+
+    public ResponseMessage placeBid(Bid bid) throws IOException {
+        return sendRequest(CommandType.PLACE_BID, bid);
+    }
+
+    public ResponseMessage getBidHistory(String itemId) throws IOException {
+        return sendRequest(CommandType.GET_BID_HISTORY, itemId);
+    }
+
+    public void disconnect() throws IOException {
+        sendRequest(CommandType.LOGOUT, null);
+        socket.close();
+    }
+}
