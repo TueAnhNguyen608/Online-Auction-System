@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="15" alignment="CENTER"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="client.LoginController"
+      style="-fx-background-image: url('/client/bg.jpg'); -fx-background-size: cover; -fx-background-position: center;">
+
+    <padding>
+        <Insets top="50" right="40" bottom="50" left="40"/>
+    </padding>
+
+    <VBox spacing="15" alignment="CENTER"
+          style="-fx-background-color: rgba(255, 255, 255, 0.25);"
+          VBox.vgrow="ALWAYS">
+
+        <padding>
+            <Insets top="50" right="40" bottom="50" left="40"/>
+        </padding>
+
+        <VBox spacing="14" alignment="CENTER"
+              style="-fx-background-color: rgba(255, 255, 255, 0.85); -fx-background-radius: 32px; -fx-padding: 35px 40px 40px 40px; -fx-pref-width: 360px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 25, 0, 0, 10); -fx-border-color: rgba(255,255,255,0.5); -fx-border-width: 1.5px; -fx-border-radius: 32px;">
+
+            <!-- ICON MỤC TIÊU MÀU VÀNG KIM -->
+            <Label text="🎯" style="-fx-font-size: 68px; -fx-text-fill: #d4af37;"/>
+
+            <Label text="ĐẤU GIÁ">
+                <font>
+                    <Font name="Segoe UI Black" size="24"/>
+                </font>
+                <style>-fx-font-weight: bold; -fx-text-fill: #1a365d; -fx-letter-spacing: 2px;</style>
+            </Label>
+
+            <Label text="ĐĂNG NHẬP ĐỂ TIẾP TỤC"
+                   style="-fx-font-size: 11px; -fx-text-fill: #4a5568; -fx-padding: 0 0 10 0;"/>
+
+            <TextField fx:id="usernameField" promptText="Email hoặc số điện thoại" maxWidth="300"
+                       style="-fx-padding: 12px; -fx-background-radius: 28px; -fx-border-radius: 28px; -fx-border-color: #cbd5e0; -fx-background-color: rgba(255,255,255,0.9); -fx-font-size: 13px;"/>
+
+            <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="300"
+                           style="-fx-padding: 12px; -fx-background-radius: 28px; -fx-border-radius: 28px; -fx-border-color: #cbd5e0; -fx-background-color: rgba(255,255,255,0.9); -fx-font-size: 13px;"/>
+
+            <Button text="ĐĂNG NHẬP" onAction="#handleLogin" maxWidth="300"
+                    style="-fx-background-color: #2c5282; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 12px; -fx-background-radius: 28px; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44,82,130,0.4), 8, 0, 0, 3);"/>
+
+            <HBox spacing="8" alignment="CENTER">
+                <Label text="CHƯA CÓ TÀI KHOẢN?" style="-fx-text-fill: #4a5568; -fx-font-size: 11px;"/>
+                <Hyperlink text="ĐĂNG KÝ NGAY" onAction="#handleGoToRegister"
+                           style="-fx-text-fill: #3182ce; -fx-font-weight: bold; -fx-underline: false; -fx-font-size: 11px;"/>
+            </HBox>
+
+            <Label fx:id="statusLabel" text="Không kết nối được server"
+                   style="-fx-text-fill: #e53e3e; -fx-font-size: 11px; -fx-padding: 8px 0 0 0;"/>
+        </VBox>
+    </VBox>
+</VBox>
