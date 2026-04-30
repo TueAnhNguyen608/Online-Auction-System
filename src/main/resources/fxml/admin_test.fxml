@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="15" xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="view.admin.AdminTestController"
+      styleClass="root"
+      alignment="TOP_CENTER">
+
+    <!-- Header -->
+    <Label text="ADMIN DASHBOARD" styleClass="header-title" alignment="CENTER" maxWidth="Infinity"/>
+
+    <!-- ========== THANH TÌM KIẾM & LỌC - DÀN ĐỀU 2 ĐẦU ========== -->
+    <HBox spacing="15" styleClass="search-filter-bar" maxWidth="Infinity" alignment="CENTER">
+        <!-- Khối 1: Tìm kiếm -->
+        <HBox spacing="8" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+            <Label text="🔍 Tìm kiếm:" styleClass="filter-label"/>
+            <TextField fx:id="txtSearch" promptText="Nhập tên sản phẩm..." styleClass="search-field" HBox.hgrow="ALWAYS"/>
+        </HBox>
+
+        <!-- Khối 2: Lọc trạng thái -->
+        <HBox spacing="8" alignment="CENTER_LEFT">
+            <Label text="📌 Lọc trạng thái:" styleClass="filter-label"/>
+            <ComboBox fx:id="cbFilterStatus" styleClass="filter-combo" prefWidth="120"/>
+        </HBox>
+
+        <!-- Khối 3: Lọc giá -->
+        <HBox spacing="8" alignment="CENTER_LEFT">
+            <Label text="💰 Lọc giá:" styleClass="filter-label"/>
+            <ComboBox fx:id="cbFilterPrice" styleClass="filter-combo" prefWidth="140"/>
+        </HBox>
+
+        <!-- Khối 4: Nút bấm -->
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button text="LỌC" styleClass="btn-filter" onAction="#handleFilter" prefWidth="80"/>
+            <Button text="XÓA LỌC" styleClass="btn-clear-filter" onAction="#handleClearFilter" prefWidth="100"/>
+        </HBox>
+    </HBox>
+
+    <!-- Bảng sản phẩm -->
+    <TableView fx:id="tvProducts" VBox.vgrow="ALWAYS" styleClass="product-table">
+        <columns>
+            <TableColumn fx:id="colSTT" text="STT" prefWidth="50" sortable="false"/>
+            <TableColumn fx:id="colId" text="ID" prefWidth="100"/>
+            <TableColumn fx:id="colName" text="Tên sản phẩm" prefWidth="180"/>
+            <TableColumn fx:id="colStartPrice" text="Giá khởi điểm" prefWidth="120"/>
+            <TableColumn fx:id="colCurrentPrice" text="Giá hiện tại" prefWidth="120"/>
+            <TableColumn fx:id="colSeller" text="Người bán" prefWidth="100"/>
+            <TableColumn fx:id="colBidder" text="Người đấu giá" prefWidth="120"/>
+            <TableColumn fx:id="colEndTime" text="Kết thúc" prefWidth="150"/>
+            <TableColumn fx:id="colStatus" text="Trạng thái" prefWidth="90"/>
+            <TableColumn fx:id="colBidCount" text="Lượt đấu" prefWidth="70"/>
+        </columns>
+
+
+    </TableView>
+
+    <!-- Panel QUẢN LÝ SẢN PHẨM -->
+    <VBox spacing="15" styleClass="control-panel" alignment="CENTER">
+        <Label text="QUẢN LÝ SẢN PHẨM" styleClass="panel-title"/>
+
+        <GridPane hgap="15" vgap="12" alignment="CENTER" styleClass="form-grid">
+            <Label text="TÊN SẢN PHẨM:" styleClass="form-label" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <TextField fx:id="txtName" promptText="Nhập tên sản phẩm" styleClass="form-field" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+            <Label text="GIÁ KHỞI ĐIỂM:" styleClass="form-label" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="txtPrice" promptText="Nhập giá khởi điểm" styleClass="form-field" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+            <Label text="THỜI GIAN (ngày):" styleClass="form-label" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="cbDays" styleClass="form-field" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+            <Label text="LOẠI SẢN PHẨM:" styleClass="form-label" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+            <ComboBox fx:id="cbCategory" styleClass="form-field" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+        </GridPane>
+
+        <HBox spacing="20" alignment="CENTER" styleClass="button-row">
+            <Button fx:id="btnAdd" text="THÊM" styleClass="btn-add"/>
+            <Button fx:id="btnEdit" text="SỬA" styleClass="btn-edit"/>
+            <Button fx:id="btnDelete" text="XÓA" styleClass="btn-delete"/>
+            <Button fx:id="btnRefresh" text="LÀM MỚI" styleClass="btn-refresh"/>
+        </HBox>
+    </VBox>
+
+    <!-- Hàng nút chức năng phụ -->
+    <HBox spacing="20" alignment="CENTER" styleClass="action-row">
+        <Button text="🏁 KẾT THÚC SỚM" styleClass="btn-end" onAction="#handleForceEnd"/>
+        <Button text="📜 LỊCH SỬ ĐẤU" styleClass="btn-history" onAction="#handleViewBidHistory"/>
+        <Button text="🏆 NGƯỜI THẮNG" styleClass="btn-winner" onAction="#handleViewWinner"/>
+        <Button text="📤 EXPORT" styleClass="btn-export" onAction="#handleExport"/>
+    </HBox>
+
+    <Label fx:id="lblStatus" text="Ready" styleClass="status-bar"/>
+</VBox>
