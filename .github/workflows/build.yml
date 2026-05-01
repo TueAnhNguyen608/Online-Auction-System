@@ -1,0 +1,37 @@
+name: Java CI/CD - Auction System
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile with Maven
+        run: mvn clean compile
+
+      - name: Run Unit Tests
+        run: mvn test
+
+      - name: Package with Maven
+        run: mvn package -DskipTests
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auction-system-jar
+          path: target/*.jar
