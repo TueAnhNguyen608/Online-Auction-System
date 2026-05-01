@@ -329,14 +329,13 @@ public class AdminTestController {
 
             new Thread(() -> {
                 try {
-                    if (dbManager.createItem(item)) {
-                        Platform.runLater(() -> {
-                            loadItems();
-                            clearForm();
-                            showAlert("✅ Thêm thành công!", Alert.AlertType.INFORMATION);
-                        });
-                    }
-                } catch (SQLException e) {
+                    dbManager.createItem(item);
+                    Platform.runLater(() -> {
+                        loadItems();
+                        clearForm();
+                        showAlert("✅ Thêm thành công!", Alert.AlertType.INFORMATION);
+                    });
+                } catch (SQLException | DataValidationException e) {
                     Platform.runLater(() -> showAlert("❌ Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
                 }
             }).start();

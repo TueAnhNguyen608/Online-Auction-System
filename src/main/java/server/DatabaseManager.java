@@ -11,21 +11,50 @@ public class DatabaseManager {
     private Connection conn;
     private final ConcurrentHashMap<String, ReentrantLock> itemLocks = new ConcurrentHashMap<>();
 
-    // Anti-Sniping constants
     private static final int SNIPING_WINDOW_SECONDS = 30;
     private static final int EXTENSION_SECONDS = 60;
 
-    // Database configuration
     private static final String DB_URL = "jdbc:mysql://localhost:3306/auction_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "Nhom7123456";
 
     public DatabaseManager() throws SQLException {
         conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        createTablesIfNotExist();
         System.out.println("✅ Kết nối database thành công!");
     }
 
-    // Lấy connection mới cho transaction
+    private void createTablesIfNotExist() throws SQLException {
+        String createUsers = "CREATE TABLE IF NOT EXISTS users (" +
+                "id VARCHAR(36) PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, " +
+                "password VARCHAR(255) NOT NULL, email VARCHAR(100), role VARCHAR(20) DEFAULT 'BIDDER', " +
+                "balance DECIMAL(15,2) DEFAULT 0, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
+
+        String createItems = "CREATE TABLE IF NOT EXISTS items (" +
+                "id VARCHAR(36) PRIMARY KEY, name VARCHAR(200) NOT NULL, description TEXT, " +
+                "starting_price DECIMAL(15,2) NOT NULL, current_price DECIMAL(15,2) NOT NULL, " +
+                "current_bidder_id VARCHAR(36), current_bidder_name VARCHAR(50), seller_id VARCHAR(36) NOT NULL, " +
+                "seller_name VARCHAR(50), start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, end_time TIMESTAMP NOT NULL, " +
+                "status VARCHAR(20) DEFAULT 'ACTIVE', bid_count INT DEFAULT 0, step_price DECIMAL(15,2) DEFAULT 0, " +
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
+
+        String createBids = "CREATE TABLE IF NOT EXISTS bids (" +
+                "id VARCHAR(36) PRIMARY KEY, item_id VARCHAR(36) NOT NULL, item_name VARCHAR(200), " +
+                "bidder_id VARCHAR(36) NOT NULL, bidder_name VARCHAR(50), amount DECIMAL(15,2) NOT NULL, " +
+                "bid_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_auto_bid BOOLEAN DEFAULT FALSE)";
+
+        String createAutoBid = "CREATE TABLE IF NOT EXISTS auto_bid_settings (" +
+                "user_id VARCHAR(36) NOT NULL, item_id VARCHAR(36) NOT NULL, max_amount DECIMAL(15,2) NOT NULL, " +
+                "PRIMARY KEY (user_id, item_id))";
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(createUsers);
+            stmt.execute(createItems);
+            stmt.execute(createBids);
+            stmt.execute(createAutoBid);
+        }
+    }
+
     private Connection getNewConnection() throws SQLException {
         Connection newConn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
         newConn.setAutoCommit(false);
@@ -33,7 +62,7 @@ public class DatabaseManager {
     }
 
     // ========== USER ==========
-    public User login(String username, String password) throws SQLException {
+    public User login(String username, String password) throws SQLException, AuthenticationException {
         String sql = "SELECT * FROM users WHERE username=? AND password=? AND is_active=true";
         PreparedStatement stmt = conn.prepareStatement(sql);
         stmt.setString(1, username);
@@ -49,7 +78,7 @@ public class DatabaseManager {
             user.setBalance(rs.getDouble("balance"));
             return user;
         }
-        return null;
+        throw new AuthenticationException("Sai tên đăng nhập hoặc mật khẩu", username);
     }
 
     public boolean register(User user) throws SQLException {
@@ -63,27 +92,32 @@ public class DatabaseManager {
         return stmt.executeUpdate() > 0;
     }
 
-    public double getUserBalance(String userId) throws SQLException {
-        String sql = "SELECT balance FROM users WHERE id=?";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, userId);
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next()) {
-            return rs.getDouble("balance");
-        }
-        return 0;
-    }
-
-    public boolean updateBalance(String userId, double newBalance) throws SQLException {
-        String sql = "UPDATE users SET balance=? WHERE id=?";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setDouble(1, newBalance);
-        stmt.setString(2, userId);
-        return stmt.executeUpdate() > 0;
-    }
-
     // ========== ITEM ==========
-    public boolean createItem(Item item) throws SQLException {
+    public void validateItem(Item item) throws DataValidationException {
+        DataValidationException validation = new DataValidationException("Dữ liệu sản phẩm không hợp lệ");
+
+        if (item.getName() == null || item.getName().trim().isEmpty()) {
+            validation.addError("Tên sản phẩm không được để trống");
+        }
+
+        if (item.getStartingPrice() <= 0) {
+            validation.addError("Giá khởi điểm phải lớn hơn 0");
+        }
+
+        if (item.getEndTime() == null) {
+            validation.addError("Thời gian kết thúc không được để trống");
+        } else if (item.getEndTime().isBefore(LocalDateTime.now().plusMinutes(5))) {
+            validation.addError("Thời gian kết thúc phải sau ít nhất 5 phút");
+        }
+
+        if (validation.hasErrors()) {
+            throw validation;
+        }
+    }
+
+    public boolean createItem(Item item) throws SQLException, DataValidationException {
+        validateItem(item);
+
         String sql = "INSERT INTO items(id, name, description, starting_price, current_price, " +
                 "seller_id, seller_name, start_time, end_time, status, step_price) " +
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)";
@@ -97,7 +131,7 @@ public class DatabaseManager {
         stmt.setString(7, item.getSellerName());
         stmt.setTimestamp(8, Timestamp.valueOf(item.getStartTime()));
         stmt.setTimestamp(9, Timestamp.valueOf(item.getEndTime()));
-        stmt.setString(10, item.getStatus());
+        stmt.setString(10, "ACTIVE");
         stmt.setDouble(11, item.getStartingPrice() * 0.05);
         return stmt.executeUpdate() > 0;
     }
@@ -109,22 +143,7 @@ public class DatabaseManager {
         ResultSet rs = stmt.executeQuery(sql);
 
         while (rs.next()) {
-            Item item = new Item();
-            item.setId(rs.getString("id"));
-            item.setName(rs.getString("name"));
-            item.setDescription(rs.getString("description"));
-            item.setStartingPrice(rs.getDouble("starting_price"));
-            item.setCurrentPrice(rs.getDouble("current_price"));
-            item.setCurrentBidderId(rs.getString("current_bidder_id"));
-            item.setCurrentBidderName(rs.getString("current_bidder_name"));
-            item.setSellerId(rs.getString("seller_id"));
-            item.setSellerName(rs.getString("seller_name"));
-            item.setStatus(rs.getString("status"));
-            item.setBidCount(rs.getInt("bid_count"));
-            if (rs.getTimestamp("end_time") != null) {
-                item.setEndTime(rs.getTimestamp("end_time").toLocalDateTime());
-            }
-            items.add(item);
+            items.add(extractItem(rs));
         }
         return items;
     }
@@ -134,33 +153,38 @@ public class DatabaseManager {
         PreparedStatement stmt = conn.prepareStatement(sql);
         stmt.setString(1, itemId);
         ResultSet rs = stmt.executeQuery();
-
         if (rs.next()) {
-            Item item = new Item();
-            item.setId(rs.getString("id"));
-            item.setName(rs.getString("name"));
-            item.setDescription(rs.getString("description"));
-            item.setStartingPrice(rs.getDouble("starting_price"));
-            item.setCurrentPrice(rs.getDouble("current_price"));
-            item.setCurrentBidderId(rs.getString("current_bidder_id"));
-            item.setCurrentBidderName(rs.getString("current_bidder_name"));
-            item.setSellerId(rs.getString("seller_id"));
-            item.setSellerName(rs.getString("seller_name"));
-            item.setStatus(rs.getString("status"));
-            item.setBidCount(rs.getInt("bid_count"));
-            if (rs.getTimestamp("end_time") != null) {
-                item.setEndTime(rs.getTimestamp("end_time").toLocalDateTime());
-            }
-            return item;
+            return extractItem(rs);
         }
         return null;
     }
 
-    // ========== BID - CONCURRENT SAFE with Anti-Sniping ==========
-    public boolean placeBidSafe(Bid bid) throws SQLException {
+    private Item extractItem(ResultSet rs) throws SQLException {
+        Item item = new Item();
+        item.setId(rs.getString("id"));
+        item.setName(rs.getString("name"));
+        item.setDescription(rs.getString("description"));
+        item.setStartingPrice(rs.getDouble("starting_price"));
+        item.setCurrentPrice(rs.getDouble("current_price"));
+        item.setCurrentBidderId(rs.getString("current_bidder_id"));
+        item.setCurrentBidderName(rs.getString("current_bidder_name"));
+        item.setSellerId(rs.getString("seller_id"));
+        item.setSellerName(rs.getString("seller_name"));
+        item.setStatus(rs.getString("status"));
+        item.setBidCount(rs.getInt("bid_count"));
+        if (rs.getTimestamp("end_time") != null) {
+            item.setEndTime(rs.getTimestamp("end_time").toLocalDateTime());
+        }
+        if (rs.getTimestamp("start_time") != null) {
+            item.setStartTime(rs.getTimestamp("start_time").toLocalDateTime());
+        }
+        return item;
+    }
+
+    // ========== BID WITH VALIDATION ==========
+    public void placeBidWithValidation(Bid bid) throws SQLException, InvalidBidException, AuctionClosedException {
         ReentrantLock lock = itemLocks.computeIfAbsent(bid.getItemId(), k -> new ReentrantLock());
         lock.lock();
-
         Connection localConn = null;
 
         try {
@@ -173,33 +197,37 @@ public class DatabaseManager {
 
             if (!rs.next()) {
                 localConn.rollback();
-                return false;
+                throw new InvalidBidException("Sản phẩm không tồn tại");
             }
 
-            if (!"ACTIVE".equals(rs.getString("status"))) {
-                localConn.rollback();
-                return false;
-            }
-
+            String status = rs.getString("status");
             Timestamp endTime = rs.getTimestamp("end_time");
-            if (endTime.before(new Timestamp(System.currentTimeMillis()))) {
-                localConn.rollback();
-                return false;
-            }
-
             double currentPrice = rs.getDouble("current_price");
             double stepPrice = rs.getDouble("step_price");
             if (stepPrice <= 0) stepPrice = currentPrice * 0.05;
 
-            if (bid.getAmount() < currentPrice + stepPrice) {
+            if ("ENDED".equals(status) || "CANCELLED".equals(status)) {
                 localConn.rollback();
-                return false;
+                throw new AuctionClosedException("Phiên đấu giá đã kết thúc", bid.getItemId());
+            }
+
+            if (endTime.before(new Timestamp(System.currentTimeMillis()))) {
+                localConn.rollback();
+                throw new AuctionClosedException("Thời gian đấu giá đã kết thúc", bid.getItemId());
+            }
+
+            double minimumBid = currentPrice + stepPrice;
+            if (bid.getAmount() < minimumBid) {
+                localConn.rollback();
+                throw new InvalidBidException(
+                        "Giá đặt phải cao hơn giá hiện tại ít nhất " + stepPrice + " VND",
+                        bid.getItemId(), bid.getAmount(), minimumBid);
             }
 
             String sellerId = rs.getString("seller_id");
             if (bid.getBidderId().equals(sellerId)) {
                 localConn.rollback();
-                return false;
+                throw new InvalidBidException("Người bán không thể đấu giá sản phẩm của chính mình");
             }
 
             long secondsLeft = (endTime.getTime() - System.currentTimeMillis()) / 1000;
@@ -246,8 +274,6 @@ public class DatabaseManager {
             }
 
             triggerAutoBids(bid.getItemId(), bid.getAmount(), bid.getBidderId());
-
-            return true;
 
         } catch (SQLException e) {
             if (localConn != null) localConn.rollback();
@@ -304,8 +330,11 @@ public class DatabaseManager {
                 autoBid.setAutoBid(true);
 
                 System.out.println("🤖 Auto-bid triggered for " + username + " with amount " + nextPrice);
-                placeBidSafe(autoBid);
-
+                try {
+                    placeBidWithValidation(autoBid);
+                } catch (InvalidBidException | AuctionClosedException e) {
+                    System.out.println("Auto-bid failed: " + e.getMessage());
+                }
                 nextPrice += stepPrice;
             } else {
                 break;
@@ -339,22 +368,6 @@ public class DatabaseManager {
         return bids;
     }
 
-    public List<PricePoint> getPriceHistory(String itemId) throws SQLException {
-        List<PricePoint> history = new ArrayList<>();
-        String sql = "SELECT amount, bid_time FROM bids WHERE item_id=? ORDER BY bid_time ASC";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, itemId);
-        ResultSet rs = stmt.executeQuery();
-
-        while (rs.next()) {
-            history.add(new PricePoint(
-                    rs.getDouble("amount"),
-                    rs.getTimestamp("bid_time").toLocalDateTime()
-            ));
-        }
-        return history;
-    }
-
     public void endExpiredAuctions() throws SQLException {
         String sql = "UPDATE items SET status='ENDED' WHERE status='ACTIVE' AND end_time < NOW()";
         Statement stmt = conn.createStatement();
@@ -364,7 +377,6 @@ public class DatabaseManager {
         }
     }
 
-    // ========== AUTO BID SETTINGS ==========
     public boolean setAutoBid(String userId, String itemId, double maxAmount) throws SQLException {
         String sql = "INSERT INTO auto_bid_settings (user_id, item_id, max_amount) VALUES (?,?,?) " +
                 "ON DUPLICATE KEY UPDATE max_amount=?";
@@ -376,22 +388,48 @@ public class DatabaseManager {
         return stmt.executeUpdate() > 0;
     }
 
-    public boolean cancelAutoBid(String userId, String itemId) throws SQLException {
-        String sql = "DELETE FROM auto_bid_settings WHERE user_id=? AND item_id=?";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, userId);
-        stmt.setString(2, itemId);
-        return stmt.executeUpdate() > 0;
+    // ========== STATISTICS METHODS ==========
+
+    public int getTotalBids() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM bids";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
     }
 
-    public double getAutoBidMax(String userId, String itemId) throws SQLException {
-        String sql = "SELECT max_amount FROM auto_bid_settings WHERE user_id=? AND item_id=?";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, userId);
-        stmt.setString(2, itemId);
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next()) {
-            return rs.getDouble("max_amount");
+    public int getActiveItemsCount() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM items WHERE status='ACTIVE' AND end_time > NOW()";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    public int getTotalUsers() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM users";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    public double getTotalRevenue() throws SQLException {
+        String sql = "SELECT SUM(current_price) FROM items WHERE status='ENDED'";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getDouble(1);
+            }
         }
         return 0;
     }
@@ -400,32 +438,26 @@ public class DatabaseManager {
 
     public List<Item> getAllItems() throws SQLException {
         List<Item> items = new ArrayList<>();
-        String sql = "SELECT * FROM items ORDER BY start_time DESC";
+        String sql = "SELECT * FROM items ORDER BY created_at DESC";
         Statement stmt = conn.createStatement();
         ResultSet rs = stmt.executeQuery(sql);
 
         while (rs.next()) {
-            Item item = new Item();
-            item.setId(rs.getString("id"));
-            item.setName(rs.getString("name"));
-            item.setDescription(rs.getString("description"));
-            item.setStartingPrice(rs.getDouble("starting_price"));
-            item.setCurrentPrice(rs.getDouble("current_price"));
-            item.setCurrentBidderId(rs.getString("current_bidder_id"));
-            item.setCurrentBidderName(rs.getString("current_bidder_name"));
-            item.setSellerId(rs.getString("seller_id"));
-            item.setSellerName(rs.getString("seller_name"));
-            item.setStatus(rs.getString("status"));
-            item.setBidCount(rs.getInt("bid_count"));
-            if (rs.getTimestamp("end_time") != null) {
-                item.setEndTime(rs.getTimestamp("end_time").toLocalDateTime());
-            }
-            if (rs.getTimestamp("start_time") != null) {
-                item.setStartTime(rs.getTimestamp("start_time").toLocalDateTime());
-            }
-            items.add(item);
+            items.add(extractItem(rs));
         }
         return items;
+    }
+
+    public boolean updateItem(Item item) throws SQLException {
+        String sql = "UPDATE items SET name=?, description=?, starting_price=?, current_price=?, end_time=? WHERE id=?";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        stmt.setString(1, item.getName());
+        stmt.setString(2, item.getDescription());
+        stmt.setDouble(3, item.getStartingPrice());
+        stmt.setDouble(4, item.getCurrentPrice());
+        stmt.setTimestamp(5, Timestamp.valueOf(item.getEndTime()));
+        stmt.setString(6, item.getId());
+        return stmt.executeUpdate() > 0;
     }
 
     public boolean deleteItem(String itemId) throws SQLException {
@@ -473,38 +505,5 @@ public class DatabaseManager {
             return user;
         }
         return null;
-    }
-
-    public boolean updateItem(Item item) throws SQLException {
-        String sql = "UPDATE items SET name=?, description=?, starting_price=?, current_price=? WHERE id=?";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, item.getName());
-        stmt.setString(2, item.getDescription());
-        stmt.setDouble(3, item.getStartingPrice());
-        stmt.setDouble(4, item.getCurrentPrice());
-        stmt.setString(5, item.getId());
-        return stmt.executeUpdate() > 0;
-    }
-
-    // ========== SERVER CONSOLE STATISTICS ==========
-
-    public int getTotalBids() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM bids";
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
-        if (rs.next()) {
-            return rs.getInt(1);
-        }
-        return 0;
-    }
-
-    public int getActiveItemsCount() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM items WHERE status='ACTIVE' AND end_time > NOW()";
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
-        if (rs.next()) {
-            return rs.getInt(1);
-        }
-        return 0;
     }
 }

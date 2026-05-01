@@ -1,0 +1,72 @@
+/* 1. Nền tổng thể Dark Mode chuyển màu sang trọng */
+.root {
+    -fx-background-color: linear-gradient(to bottom right, #0f2027, #203a43, #2c5364);
+}
+
+/* 2. Thẻ chứa form Login: Hiệu ứng kính mờ (Glassmorphism) */
+.login-card {
+    -fx-background-color: rgba(255, 255, 255, 0.08); /* Trắng trong suốt 8% */
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.2); /* Viền mờ */
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 20, 0, 0, 10); /* Bóng đổ 3D */
+}
+
+/* 3. Tiêu đề ĐĂNG NHẬP */
+.title-label {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 5, 0, 0, 2);
+}
+
+/* 4. Ô nhập liệu (TextField & PasswordField) */
+.text-input {
+    -fx-background-color: rgba(255, 255, 255, 0.85);
+    -fx-background-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-font-size: 14px;
+    -fx-padding: 10px;
+    /* Xóa bỏ cái viền xanh mặc định phèn phèn của JavaFX */
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+/* Hiệu ứng khi click chuột vào ô nhập (Sáng lên và có viền xanh dương xịn xò) */
+.text-input:focused {
+    -fx-background-color: white;
+    -fx-border-color: #00d2ff;
+    -fx-border-radius: 8px;
+    -fx-border-width: 2px;
+}
+
+/* 5. Nút Đăng nhập chính */
+.btn-primary {
+    -fx-background-color: linear-gradient(to right, #3a7bd5, #3a6073); /* Gradient xanh dương */
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+}
+
+/* Hiệu ứng VIP: Rê chuột vào nút Đăng nhập thì nút sáng lên và đổ bóng */
+.btn-primary:hover {
+    -fx-background-color: linear-gradient(to right, #4b8de6, #4b7386);
+    -fx-effect: dropshadow(gaussian, rgba(58, 123, 213, 0.6), 15, 0, 0, 0);
+}
+
+/* 6. Nút Đăng ký */
+.btn-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b2bec3; /* Màu xám nhạt */
+    -fx-underline: true;
+    -fx-cursor: hand;
+    -fx-font-size: 13px;
+}
+
+/* Rê chuột vào nút Đăng ký thì chữ sáng rực lên màu trắng */
+.btn-link:hover {
+    -fx-text-fill: white;
+}

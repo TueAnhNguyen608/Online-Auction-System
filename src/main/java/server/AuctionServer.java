@@ -57,11 +57,13 @@ public class AuctionServer {
 
         new Thread(() -> {
             try {
-                dbManager    = new DatabaseManager();
+                dbManager = new DatabaseManager();
+                DataInitializer.initData(dbManager);  // ← THÊM DÒNG NÀY VÀO ĐÂY
+
                 serverSocket = new ServerSocket();
                 serverSocket.setReuseAddress(true);
                 serverSocket.bind(new InetSocketAddress(PORT));
-                isRunning    = true;   // ← đặt true SAU khi bind thành công
+                isRunning = true;
 
                 logToUI("🚀 Server started on port " + PORT);
 
@@ -83,7 +85,6 @@ public class AuctionServer {
                         ClientHandler handler = new ClientHandler(clientSocket, dbManager);
                         threadPool.execute(handler);
                     } catch (Exception e) {
-                        // serverSocket.close() từ stopServer() sẽ ném exception ở đây – bỏ qua
                         if (isRunning) {
                             logToUI("❌ Accept error: " + e.getMessage());
                         }
@@ -97,7 +98,6 @@ public class AuctionServer {
             }
         }, "AuctionServer-Main").start();
     }
-
     // ── Dừng server ──────────────────────────────────────────────────────────
     /**
      * Dừng server: đóng socket, tắt scheduler và thread pool.

@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
 import common.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -37,20 +38,14 @@ public class ClientHandler implements Runnable {
             String line;
             while ((line = in.readLine()) != null) {
                 System.out.println("📨 Received from " + currentUsername + ": " + line);
-
                 try {
                     Request request = gson.fromJson(line, Request.class);
-                    ResponseMessage response = process(request);
-
+                    ResponseMessage response = processRequest(request);
                     if (response != null) {
-                        String jsonResponse = gson.toJson(response);
-                        out.println(jsonResponse);
+                        out.println(gson.toJson(response));
                     }
-
                     if (request.getCommand() == CommandType.LOGOUT) break;
-
                 } catch (Exception e) {
-                    e.printStackTrace();
                     ResponseMessage error = ResponseMessage.error("Lỗi xử lý: " + e.getMessage());
                     out.println(gson.toJson(error));
                 }
@@ -62,7 +57,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private ResponseMessage process(Request request) {
+    private ResponseMessage processRequest(Request request) {
         try {
             switch (request.getCommand()) {
                 case LOGIN:
@@ -70,13 +65,13 @@ public class ClientHandler implements Runnable {
                 case REGISTER:
                     return handleRegister(request.getData());
                 case GET_ACTIVE_ITEMS:
-                    return handleGetActiveItems();
+                    return ResponseMessage.success("Lấy danh sách thành công", dbManager.getActiveItems());
                 case CREATE_ITEM:
                     return handleCreateItem(request.getData());
                 case PLACE_BID:
                     return handlePlaceBid(request.getData());
                 case GET_BID_HISTORY:
-                    return handleGetBidHistory(request.getData());
+                    return ResponseMessage.success("Lấy lịch sử thành công", dbManager.getBidHistory((String) request.getData()));
                 case SUBSCRIBE_ITEM:
                     return handleSubscribe(request.getData());
                 case UNSUBSCRIBE_ITEM:
@@ -86,33 +81,48 @@ public class ClientHandler implements Runnable {
                 case LOGOUT:
                     return ResponseMessage.success("Đăng xuất thành công", null);
                 default:
-                    return ResponseMessage.error("Command chưa được hỗ trợ: " + request.getCommand());
+                    return ResponseMessage.error("Command chưa được hỗ trợ");
             }
+        } catch (InvalidBidException e) {
+            return new ResponseMessage(ResponseCode.BID_TOO_LOW, e.getMessage(), null);
+        } catch (AuctionClosedException e) {
+            return new ResponseMessage(ResponseCode.AUCTION_ENDED, e.getMessage(), null);
+        } catch (AuthenticationException e) {
+            return ResponseMessage.authFailed(e.getMessage());
+        } catch (DataValidationException e) {
+            return new ResponseMessage(ResponseCode.INVALID_REQUEST, e.getFormattedErrors(), null);
+        } catch (SQLException e) {
+            return ResponseMessage.error("Lỗi database: " + e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseMessage.error("Lỗi server: " + e.getMessage());
+            return ResponseMessage.error("Lỗi hệ thống: " + e.getMessage());
         }
     }
 
-    private ResponseMessage handleLogin(Object data) throws SQLException {
+    private ResponseMessage handleLogin(Object data) throws SQLException, AuthenticationException {
         List<?> list = (List<?>) data;
         String username = (String) list.get(0);
         String password = (String) list.get(1);
 
-        User user = dbManager.login(username, password);
-        if (user != null) {
-            currentUserId = user.getId();
-            currentUsername = user.getUsername();
-            System.out.println("✅ User logged in: " + username);
-            return ResponseMessage.success("Đăng nhập thành công", user);
+        if (username == null || username.trim().isEmpty()) {
+            throw new AuthenticationException("Tên đăng nhập không được để trống");
         }
-        return ResponseMessage.authFailed("Sai tên đăng nhập hoặc mật khẩu");
+        if (password == null || password.trim().isEmpty()) {
+            throw new AuthenticationException("Mật khẩu không được để trống");
+        }
+
+        User user = dbManager.login(username, password);
+        currentUserId = user.getId();
+        currentUsername = user.getUsername();
+        System.out.println("✅ User logged in: " + username);
+        return ResponseMessage.success("Đăng nhập thành công", user);
     }
 
+    @SuppressWarnings("unchecked")
     private ResponseMessage handleRegister(Object data) throws SQLException {
         User user;
-        if (data instanceof com.google.gson.internal.LinkedTreeMap) {
-            com.google.gson.internal.LinkedTreeMap<?, ?> map = (com.google.gson.internal.LinkedTreeMap<?, ?>) data;
+        if (data instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) data;
             user = new User();
             user.setUsername((String) map.get("username"));
             user.setPassword((String) map.get("password"));
@@ -121,33 +131,44 @@ public class ClientHandler implements Runnable {
         } else {
             user = (User) data;
         }
+
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            return ResponseMessage.error("Tên đăng nhập không được để trống");
+        }
+        if (user.getPassword() == null || user.getPassword().length() < 6) {
+            return ResponseMessage.error("Mật khẩu phải có ít nhất 6 ký tự");
+        }
+
         boolean success = dbManager.register(user);
         if (success) {
             return ResponseMessage.success("Đăng ký thành công", null);
         }
-        return ResponseMessage.error("Đăng ký thất bại");
+        return ResponseMessage.error("Đăng ký thất bại - Username đã tồn tại");
     }
 
-    private ResponseMessage handleGetActiveItems() throws SQLException {
-        List<Item> items = dbManager.getActiveItems();
-        return ResponseMessage.success("Lấy danh sách thành công", items);
-    }
-
-    private ResponseMessage handleCreateItem(Object data) throws SQLException {
+    @SuppressWarnings("unchecked")
+    private ResponseMessage handleCreateItem(Object data) throws SQLException, DataValidationException {
         Item item;
-        if (data instanceof com.google.gson.internal.LinkedTreeMap) {
-            com.google.gson.internal.LinkedTreeMap<?, ?> map = (com.google.gson.internal.LinkedTreeMap<?, ?>) data;
+        if (data instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) data;
             item = new Item();
             item.setName((String) map.get("name"));
             item.setDescription((String) map.get("description"));
             item.setStartingPrice(((Number) map.get("startingPrice")).doubleValue());
-            item.setCurrentPrice(((Number) map.get("currentPrice")).doubleValue());
+            item.setCurrentPrice(item.getStartingPrice());
+            item.setStartTime(LocalDateTime.now());
+            if (map.get("endTime") instanceof String) {
+                item.setEndTime(LocalDateTime.parse((String) map.get("endTime")));
+            } else {
+                item.setEndTime(LocalDateTime.now().plusHours(24));
+            }
         } else {
             item = (Item) data;
         }
+
         item.setSellerId(currentUserId);
         item.setSellerName(currentUsername);
-        item.setStatus("ACTIVE");
+
         boolean success = dbManager.createItem(item);
         if (success) {
             return ResponseMessage.success("Tạo sản phẩm thành công", item);
@@ -155,49 +176,42 @@ public class ClientHandler implements Runnable {
         return ResponseMessage.error("Tạo sản phẩm thất bại");
     }
 
-    private ResponseMessage handlePlaceBid(Object data) throws SQLException {
+    @SuppressWarnings("unchecked")
+    private ResponseMessage handlePlaceBid(Object data) throws SQLException, InvalidBidException, AuctionClosedException {
         Bid bid;
-
-        if (data instanceof com.google.gson.internal.LinkedTreeMap) {
-            com.google.gson.internal.LinkedTreeMap<?, ?> map = (com.google.gson.internal.LinkedTreeMap<?, ?>) data;
+        if (data instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) data;
             bid = new Bid();
             bid.setItemId((String) map.get("itemId"));
             bid.setAmount(((Number) map.get("amount")).doubleValue());
-            if (map.get("id") != null) bid.setId((String) map.get("id"));
-            if (map.get("isAutoBid") != null) bid.setAutoBid((Boolean) map.get("isAutoBid"));
         } else {
             bid = (Bid) data;
+        }
+
+        if (bid.getAmount() <= 0) {
+            throw new InvalidBidException("Số tiền đặt giá phải lớn hơn 0");
         }
 
         bid.setBidderId(currentUserId);
         bid.setBidderName(currentUsername);
         bid.setBidTime(LocalDateTime.now());
 
-        boolean success = dbManager.placeBidSafe(bid);
-        if (success) {
-            Item item = dbManager.getItemById(bid.getItemId());
-            if (item != null) {
-                long remainingSeconds = item.getEndTime() != null ?
-                        java.time.Duration.between(LocalDateTime.now(), item.getEndTime()).getSeconds() : 0;
+        dbManager.placeBidWithValidation(bid);
 
-                PriceUpdateEvent event = new PriceUpdateEvent(
-                        item.getId(), item.getName(),
-                        item.getCurrentPrice(), item.getCurrentBidderName(),
-                        remainingSeconds, item.getBidCount()
-                );
+        Item item = dbManager.getItemById(bid.getItemId());
+        if (item != null) {
+            long remainingSeconds = item.getEndTime() != null ?
+                    java.time.Duration.between(LocalDateTime.now(), item.getEndTime()).getSeconds() : 0;
 
-                AuctionServer.broadcastToItem(bid.getItemId(), event);
-            }
-            // SỬA: Đổi message thành "Đấu giá thành công"
-            return ResponseMessage.success("Đấu giá thành công!", bid);
+            PriceUpdateEvent event = new PriceUpdateEvent(
+                    item.getId(), item.getName(),
+                    item.getCurrentPrice(), item.getCurrentBidderName(),
+                    remainingSeconds, item.getBidCount()
+            );
+            AuctionServer.broadcastToItem(bid.getItemId(), event);
         }
-        return ResponseMessage.error("Đấu giá thất bại! Giá đấu phải cao hơn giá hiện tại");
-    }
 
-    private ResponseMessage handleGetBidHistory(Object data) throws SQLException {
-        String itemId = (String) data;
-        List<Bid> bids = dbManager.getBidHistory(itemId);
-        return ResponseMessage.success("Lấy lịch sử thành công", bids);
+        return ResponseMessage.success("Đấu giá thành công!", bid);
     }
 
     private ResponseMessage handleSubscribe(Object data) {
@@ -215,8 +229,9 @@ public class ClientHandler implements Runnable {
         return ResponseMessage.success("Đã hủy theo dõi", null);
     }
 
+    @SuppressWarnings("unchecked")
     private ResponseMessage handleSetAutoBid(Object data) throws SQLException {
-        Map<?, ?> map = (Map<?, ?>) data;
+        Map<String, Object> map = (Map<String, Object>) data;
         String itemId = (String) map.get("itemId");
         double maxAmount = ((Number) map.get("maxAmount")).doubleValue();
 
