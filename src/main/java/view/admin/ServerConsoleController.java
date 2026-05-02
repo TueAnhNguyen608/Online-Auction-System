@@ -59,7 +59,7 @@ public class ServerConsoleController {
 
         // Kết nối DB (chỉ để hiển thị thống kê, không liên quan start/stop)
         try {
-            dbManager = new DatabaseManager();
+            dbManager = DatabaseManager.getInstance();
             addLog("✅ Connected to database");
             loadStatistics();
         } catch (SQLException e) {

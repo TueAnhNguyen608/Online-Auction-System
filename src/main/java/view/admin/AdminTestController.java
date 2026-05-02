@@ -68,7 +68,7 @@ public class AdminTestController {
         setupFilterListeners();
 
         try {
-            dbManager = new DatabaseManager();
+            dbManager = DatabaseManager.getInstance();
             loadItems();
             lblStatus.setText("✅ Connected to database");
         } catch (SQLException e) {

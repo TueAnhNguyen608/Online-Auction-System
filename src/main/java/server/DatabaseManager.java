@@ -18,11 +18,44 @@ public class DatabaseManager {
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "Nhom7123456";
 
-    public DatabaseManager() throws SQLException {
-        conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+    // ========== SINGLETON PATTERN ==========
+    private static volatile DatabaseManager instance;
+
+    // Constructor private cho Singleton
+    private DatabaseManager() throws SQLException {
+        this.conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
         createTablesIfNotExist();
         System.out.println("✅ Kết nối database thành công!");
     }
+
+    /**
+     * Lấy instance duy nhất của DatabaseManager (Singleton Pattern)
+     * @return instance của DatabaseManager
+     * @throws SQLException nếu kết nối database thất bại
+     */
+    public static DatabaseManager getInstance() throws SQLException {
+        if (instance == null) {
+            synchronized (DatabaseManager.class) {
+                if (instance == null) {
+                    instance = new DatabaseManager();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /**
+     * Constructor cũ - giữ để tương thích ngược với code đang dùng new DatabaseManager()
+     * @deprecated Dùng {@link #getInstance()} thay thế
+     */
+    @Deprecated
+    public DatabaseManager(boolean forceNew) throws SQLException {
+        this.conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        createTablesIfNotExist();
+        System.out.println("✅ Kết nối database thành công!");
+    }
+
+    // ========== PHẦN CÒN LẠI GIỮ NGUYÊN ==========
 
     private void createTablesIfNotExist() throws SQLException {
         String createUsers = "CREATE TABLE IF NOT EXISTS users (" +

@@ -57,7 +57,7 @@ public class AuctionServer {
 
         new Thread(() -> {
             try {
-                dbManager = new DatabaseManager();
+                dbManager = DatabaseManager.getInstance();
                 DataInitializer.initData(dbManager);  // ← THÊM DÒNG NÀY VÀO ĐÂY
 
                 serverSocket = new ServerSocket();

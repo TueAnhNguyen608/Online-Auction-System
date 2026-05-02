@@ -1,6 +1,10 @@
 package client;
 
 import common.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -14,15 +18,13 @@ public class Test7Bidders {
         System.out.println("KHOI DONG 7 BIDDER...\n");
 
         // Ket noi va login cho 7 bidder
-        for (int i = 0; i < bidders.size(); i++) {
-            String bidderName = bidders.get(i);
+        for (String bidderName : bidders) {
             AuctionClient client = new AuctionClient();
             client.connect("localhost", 9999);
 
-            final String name = bidderName;
-            client.startRealtimeListener(msg -> {
-                System.out.println("🔔 [" + name + "] " + msg.getMessage());
-            });
+            client.startRealtimeListener(msg ->
+                    System.out.println("🔔 [" + bidderName + "] " + msg.getMessage())
+            );
 
             ResponseMessage login = client.login(bidderName, "123456");
             if (login.getCode() == ResponseCode.SUCCESS) {
@@ -37,11 +39,18 @@ public class Test7Bidders {
         if (!clients.isEmpty()) {
             AuctionClient tempClient = clients.get(0);
             ResponseMessage itemsResp = tempClient.getActiveItems();
-            Object data = itemsResp.getData();
 
+            // Dùng Gson để parse dữ liệu
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(java.time.LocalDateTime.class, new common.LocalDateTimeAdapter())
+                    .create();
+
+            Object data = itemsResp.getData();
             if (data instanceof List<?>) {
-                @SuppressWarnings("unchecked")
-                List<Item> items = (List<Item>) data;
+                // Chuyển List sang JSON rồi parse lại thành List<Item>
+                String json = gson.toJson(data);
+                Type itemListType = new TypeToken<ArrayList<Item>>(){}.getType();
+                List<Item> items = gson.fromJson(json, itemListType);
 
                 if (items != null && !items.isEmpty()) {
                     System.out.println("\n📦 Co " + items.size() + " san pham dang dau gia\n");
