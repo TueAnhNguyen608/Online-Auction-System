@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="15" xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="view.admin.ServerConsoleController"
+      styleClass="root"
+      alignment="TOP_CENTER">
+
+    <!-- Header -->
+    <Label text="SERVER CONSOLE" styleClass="header-title" alignment="CENTER" maxWidth="Infinity"/>
+
+    <!-- Control bar -->
+    <HBox spacing="15" alignment="CENTER" styleClass="control-bar">
+        <Button fx:id="btnStart"   text="▶ START SERVER"  styleClass="btn-start"   onAction="#handleStartServer"/>
+        <Button fx:id="btnStop"    text="⏹ STOP SERVER"   styleClass="btn-stop"    onAction="#handleStopServer"/>
+        <Button fx:id="btnRestart" text="🔄 RESTART"       styleClass="btn-restart" onAction="#handleRestart"/>
+        <Label  fx:id="lblServerStatus" text="🔴 OFFLINE"  styleClass="status-badge-offline"/>
+    </HBox>
+
+    <!-- SplitPane -->
+    <SplitPane dividerPositions="0.4" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+
+        <!-- LEFT: ONLINE CLIENTS -->
+        <VBox spacing="10" styleClass="left-panel">
+            <Label text="👥 ONLINE CLIENTS" styleClass="panel-title"/>
+            <ListView fx:id="lvClients" styleClass="client-list" VBox.vgrow="ALWAYS"/>
+            <Button fx:id="btnKick" text="🚫 KICK SELECTED" styleClass="btn-kick"
+                    prefWidth="Infinity" onAction="#handleKickClient"/>
+
+            <Separator/>
+
+            <Label text="📊 SERVER STATISTICS" styleClass="panel-title-small"/>
+            <GridPane hgap="10" vgap="6" styleClass="stats-grid">
+                <Label text="📡 Port:"           styleClass="stats-label" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <Label fx:id="lblPort"           text="9999" styleClass="stats-value" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="🟢 Clients online:" styleClass="stats-label" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <Label fx:id="lblClientCount"    text="0"    styleClass="stats-value" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                <Label text="🧵 Active threads:" styleClass="stats-label" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <Label fx:id="lblThreadCount"    text="0"    styleClass="stats-value" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <Label text="📡 Subscriptions:"  styleClass="stats-label" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <Label fx:id="lblSubscriptions"  text="0"    styleClass="stats-value" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                <Label text="💰 Total bids:"     styleClass="stats-label" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <Label fx:id="lblTotalBids"      text="0"    styleClass="stats-value" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+                <Label text="📦 Active items:"   styleClass="stats-label" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                <Label fx:id="lblActiveItems"    text="0"    styleClass="stats-value" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+            </GridPane>
+        </VBox>
+
+        <!-- RIGHT: SERVER LOGS -->
+        <VBox spacing="10" styleClass="right-panel">
+            <Label text="📋 SERVER LOGS" styleClass="panel-title"/>
+            <TextArea fx:id="taLogs" styleClass="log-area-white" VBox.vgrow="ALWAYS" editable="false"/>
+            <HBox spacing="10" alignment="CENTER_RIGHT">
+                <Button text="🗑 CLEAR LOGS"  styleClass="btn-clear"      onAction="#handleClearLogs"/>
+                <Button text="📤 EXPORT LOGS" styleClass="btn-export-log" onAction="#handleExportLogs"/>
+            </HBox>
+        </VBox>
+
+    </SplitPane>
+
+    <!-- Status Bar -->
+    <Label fx:id="lblStatus" text="Ready" styleClass="status-bar"/>
+</VBox>

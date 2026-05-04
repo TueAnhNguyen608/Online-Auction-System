@@ -3,8 +3,8 @@ package common;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public abstract class Item extends Entity  {
-    private static final long serialVersionUID = 1L; //kiểm tra khi đọc,ghi file object
+public class Item extends Entity  {
+    private static final long serialVersionUID = 1L;
 
     private String name;
     private String description;
@@ -16,13 +16,13 @@ public abstract class Item extends Entity  {
     private String sellerName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private String status;  // trạng thái
-    private int bidCount; // số lượt đấu giá
-    private String imageUrl; // link sản phẩm
+    private String status;  // PENDING, ACTIVE, ENDED, CANCELLED
+    private int bidCount;
+    private String imageUrl;
 
     public Item() {
-        this.setId(java.util.UUID.randomUUID().toString()); // tạo id riêng ngẫu nhiên cho món hang
-        this.status = "PENDING"; // chờ
+        this.setId(java.util.UUID.randomUUID().toString());
+        this.status = "PENDING";
         this.bidCount = 0;
     }
 
@@ -34,6 +34,19 @@ public abstract class Item extends Entity  {
         this.currentPrice = startingPrice;
         this.startTime = LocalDateTime.now();
         this.endTime = startTime.plusSeconds(durationSeconds);
+    }
+
+    // ✅ CONSTRUCTOR MỚI - dùng cho MainApp
+    public Item(String name, String description, double startingPrice, LocalDateTime startTime, LocalDateTime endTime) {
+        this.setId(java.util.UUID.randomUUID().toString());
+        this.name = name;
+        this.description = description;
+        this.startingPrice = startingPrice;
+        this.currentPrice = startingPrice;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.status = "ACTIVE";
+        this.bidCount = 0;
     }
 
     public String getName() { return name; }
@@ -89,4 +102,3 @@ public abstract class Item extends Entity  {
         return "Item{" + name + ", price=" + currentPrice + ", status=" + status + '}';
     }
 }
-

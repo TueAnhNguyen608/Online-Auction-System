@@ -3,7 +3,7 @@ package common;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public abstract class User extends Entity {
+public class User extends Entity {
     private static final long serialVersionUID = 1L;
 
     private String username;

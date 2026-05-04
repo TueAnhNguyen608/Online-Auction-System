@@ -1,0 +1,549 @@
+/* Root - Nền #1a3365 */
+.root {
+    -fx-background-color: #1a3365;
+    -fx-font-family: "Segoe UI", "System";
+    -fx-padding: 20;
+}
+
+/* Header căn giữa - màu trắng */
+.header-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-padding: 0 0 10 0;
+    -fx-alignment: center;
+}
+
+/* ========== THANH TÌM KIẾM & LỌC - CĂN ĐỀU ========== */
+.search-filter-bar {
+    -fx-background-color: #0d224d;
+    -fx-padding: 10 15;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-spacing: 20;
+}
+
+.filter-label {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.search-field {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-pref-height: 34;
+    -fx-pref-width: 220;
+    -fx-padding: 0 10;
+}
+
+.filter-combo {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-pref-height: 34;
+    -fx-pref-width: 130;
+}
+
+.btn-filter {
+    -fx-background-color: #2e7d32;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-height: 34;
+    -fx-pref-width: 80;
+}
+
+.btn-filter:hover {
+    -fx-background-color: #388e3c;
+}
+
+.btn-clear-filter {
+    -fx-background-color: #607d8b;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-height: 34;
+    -fx-pref-width: 100;
+}
+
+.btn-clear-filter:hover {
+    -fx-background-color: #78909c;
+}
+
+/* ========== BẢNG DỮ LIỆU ========== */
+.product-table {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #2a4a8a;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+/* Tiêu đề cột - nền #0d224d, chữ trắng */
+.product-table .column-header {
+    -fx-background-color: #0d224d;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.product-table .column-header .label {
+    -fx-text-fill: #ffffff !important;
+    -fx-font-weight: bold !important;
+}
+
+/* Nội dung bảng */
+.product-table .table-cell {
+    -fx-text-fill: #1a2a4a;
+    -fx-font-size: 13px;
+    -fx-padding: 10;
+    -fx-alignment: CENTER_LEFT;
+}
+
+/* Cột ID và Tên sản phẩm - nền xanh đậm, chữ trắng */
+.table-column-id,
+.table-column-name {
+    -fx-background-color: #0d224d;
+}
+
+.table-column-id .table-cell,
+.table-column-name .table-cell {
+    -fx-text-fill: #ffffff !important;
+    -fx-font-weight: bold;
+    -fx-background-color: #0d224d;
+}
+
+/* Xen kẽ dòng cho các cột khác */
+.product-table .table-row-cell:odd .table-cell {
+    -fx-background-color: #ffffff;
+}
+
+.product-table .table-row-cell:even .table-cell {
+    -fx-background-color: #f5f7fa;
+}
+
+/* Hover dòng - giữ màu trắng cho ID & Name */
+.product-table .table-row-cell:hover .table-cell {
+    -fx-background-color: #e8f4fd;
+}
+
+.product-table .table-row-cell:hover .table-column-id .table-cell,
+.product-table .table-row-cell:hover .table-column-name .table-cell {
+    -fx-background-color: #1a3a6e;
+    -fx-text-fill: #ffffff;
+}
+
+/* Chọn dòng */
+.product-table .table-row-cell:selected .table-cell {
+    -fx-background-color: #cde5f5;
+}
+
+.product-table .table-row-cell:selected .table-column-id .table-cell,
+.product-table .table-row-cell:selected .table-column-name .table-cell {
+    -fx-background-color: #2a4a8a;
+    -fx-text-fill: #ffffff;
+}
+
+/* ========== PANEL QUẢN LÝ SẢN PHẨM ========== */
+.control-panel {
+    -fx-background-color: #ffffff;
+    -fx-padding: 20 25;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 0);
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 15;
+}
+
+.panel-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0d224d;
+    -fx-padding: 0 0 15 0;
+    -fx-alignment: center;
+}
+
+/* Form Grid */
+.form-grid {
+    -fx-alignment: center;
+    -fx-hgap: 15;
+    -fx-vgap: 12;
+}
+
+.form-label {
+    -fx-text-fill: #0d224d;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-alignment: CENTER_RIGHT;
+}
+
+.form-field {
+    -fx-pref-width: 220;
+    -fx-pref-height: 35;
+    -fx-background-color: #f5f8fc;
+    -fx-text-fill: #1a2a4a;
+    -fx-prompt-text-fill: #8898aa;
+    -fx-background-radius: 8;
+    -fx-border-color: #b8d0e8;
+    -fx-border-radius: 8;
+    -fx-font-size: 13px;
+}
+
+.form-field:focused {
+    -fx-border-color: #0d224d;
+    -fx-background-color: white;
+}
+
+/* ========== CÁC NÚT CHÍNH ========== */
+.button-row {
+    -fx-padding: 15 0 0 0;
+}
+
+.btn-add {
+    -fx-background-color: #2e7d32;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 100;
+    -fx-pref-height: 38;
+}
+
+.btn-add:hover {
+    -fx-background-color: #388e3c;
+}
+
+.btn-edit {
+    -fx-background-color: #1976d2;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 100;
+    -fx-pref-height: 38;
+}
+
+.btn-edit:hover {
+    -fx-background-color: #1e88e5;
+}
+
+.btn-delete {
+    -fx-background-color: #c62828;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 100;
+    -fx-pref-height: 38;
+}
+
+.btn-delete:hover {
+    -fx-background-color: #e53935;
+}
+
+.btn-refresh {
+    -fx-background-color: #607d8b;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 100;
+    -fx-pref-height: 38;
+}
+
+.btn-refresh:hover {
+    -fx-background-color: #78909c;
+}
+
+/* ========== HÀNG NÚT CHỨC NĂNG PHỤ ========== */
+.action-row {
+    -fx-padding: 10 0 0 0;
+}
+
+.btn-end {
+    -fx-background-color: #e65100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 140;
+    -fx-pref-height: 36;
+}
+
+.btn-end:hover {
+    -fx-background-color: #f57c00;
+}
+
+.btn-history {
+    -fx-background-color: #6a1b9a;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 140;
+    -fx-pref-height: 36;
+}
+
+.btn-history:hover {
+    -fx-background-color: #7b1fa2;
+}
+
+.btn-winner {
+    -fx-background-color: #f9a825;
+    -fx-text-fill: #1a2a4a;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 140;
+    -fx-pref-height: 36;
+}
+
+.btn-winner:hover {
+    -fx-background-color: #fbc02d;
+}
+
+.btn-export {
+    -fx-background-color: #00838f;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 140;
+    -fx-pref-height: 36;
+}
+
+.btn-export:hover {
+    -fx-background-color: #0097a7;
+}
+
+/* ========== STATUS BAR ========== */
+.status-bar {
+    -fx-padding: 8 15;
+    -fx-background-color: #0d224d;
+    -fx-text-fill: #a6e3a1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-font-size: 12px;
+}
+
+/* ========== DISABLE BUTTON ========== */
+.button:disabled {
+    -fx-opacity: 0.5;
+}
+/* Cột thời gian kết thúc */
+.table-column-endtime .table-cell {
+    -fx-font-family: "Consolas";
+    -fx-font-size: 12px;
+}
+
+/* ========== SERVER CONSOLE STYLES ========== */
+
+/* Control bar - nền trắng, không màu xanh đậm */
+.control-bar {
+    -fx-background-color: #ffffff;
+    -fx-padding: 12 20;
+    -fx-background-radius: 10;
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 0);
+}
+
+/* Server status badges */
+.status-badge-online {
+    -fx-text-fill: #2e7d32;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 0 15;
+}
+
+.status-badge-offline {
+    -fx-text-fill: #c62828;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 0 15;
+}
+
+/* Server control buttons */
+.btn-start {
+    -fx-background-color: #2e7d32;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 130;
+    -fx-pref-height: 38;
+}
+
+.btn-start:hover {
+    -fx-background-color: #388e3c;
+}
+
+.btn-stop {
+    -fx-background-color: #c62828;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 130;
+    -fx-pref-height: 38;
+}
+
+.btn-stop:hover {
+    -fx-background-color: #e53935;
+}
+
+.btn-restart {
+    -fx-background-color: #f57c00;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 110;
+    -fx-pref-height: 38;
+}
+
+.btn-restart:hover {
+    -fx-background-color: #ff9800;
+}
+
+/* Left panel - Online Clients */
+.left-panel {
+    -fx-background-color: #ffffff;
+    -fx-padding: 15;
+    -fx-background-radius: 10;
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 10;
+}
+
+/* Right panel - Server Logs (nền trắng) */
+.right-panel {
+    -fx-background-color: #ffffff;
+    -fx-padding: 15;
+    -fx-background-radius: 10;
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 10;
+}
+
+.panel-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0d224d;
+    -fx-padding: 0 0 10 0;
+}
+
+.panel-title-small {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0d224d;
+    -fx-padding: 10 0 5 0;
+}
+
+/* Client list */
+.client-list {
+    -fx-background-color: #f5f8fc;
+    -fx-background-radius: 8;
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 8;
+}
+
+.client-list .list-cell {
+    -fx-text-fill: #1a2a4a;
+    -fx-padding: 8;
+    -fx-font-size: 13px;
+}
+
+.client-list .list-cell:selected {
+    -fx-background-color: #cde5f5;
+}
+
+/* Kick button */
+.btn-kick {
+    -fx-background-color: #e65100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-height: 35;
+}
+
+.btn-kick:hover {
+    -fx-background-color: #f57c00;
+}
+
+/* Statistics grid */
+.stats-grid {
+    -fx-padding: 5 0;
+}
+
+.stats-label {
+    -fx-text-fill: #607d8b;
+    -fx-font-size: 12px;
+}
+
+.stats-value {
+    -fx-text-fill: #0d224d;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+/* Log area - NỀN TRẮNG, CHỮ ĐEN DỄ NHÌN */
+.log-area-white {
+    -fx-font-family: "Consolas", "Monaco";
+    -fx-font-size: 12px;
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #1a2a4a;
+    -fx-control-inner-background: #ffffff;
+    -fx-border-color: #cde0f0;
+    -fx-border-radius: 8;
+}
+
+.log-area-white .content {
+    -fx-background-color: #ffffff;
+}
+
+/* Clear logs button */
+.btn-clear {
+    -fx-background-color: #607d8b;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 110;
+    -fx-pref-height: 32;
+}
+
+.btn-clear:hover {
+    -fx-background-color: #78909c;
+}
+
+.btn-export-log {
+    -fx-background-color: #00838f;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 120;
+    -fx-pref-height: 32;
+}
+
+.btn-export-log:hover {
+    -fx-background-color: #0097a7;
+}
