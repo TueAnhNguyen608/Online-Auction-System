@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public abstract class Item extends Entity  {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L; //kiểm tra khi đọc,ghi file object
 
     private String name;
     private String description;
@@ -16,13 +16,13 @@ public abstract class Item extends Entity  {
     private String sellerName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private String status;  // PENDING, ACTIVE, ENDED, CANCELLED
-    private int bidCount;
-    private String imageUrl;
+    private String status;  // trạng thái
+    private int bidCount; // số lượt đấu giá
+    private String imageUrl; // link sản phẩm
 
     public Item() {
-        this.setId(java.util.UUID.randomUUID().toString());
-        this.status = "PENDING";
+        this.setId(java.util.UUID.randomUUID().toString()); // tạo id riêng ngẫu nhiên cho món hang
+        this.status = "PENDING"; // chờ
         this.bidCount = 0;
     }
 
