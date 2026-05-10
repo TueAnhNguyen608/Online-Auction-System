@@ -102,7 +102,6 @@ public class LoginApp extends Application {
                 return;
             }
 
-            // Thay đổi UI để báo hiệu đang tải (UX tốt)
             btnLogin.setText("ĐANG XỬ LÝ...");
             btnLogin.setDisable(true);
             lblError.setText("");
