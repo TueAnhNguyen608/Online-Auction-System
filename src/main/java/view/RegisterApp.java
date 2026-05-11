@@ -1,5 +1,8 @@
 package view;
 
+import client.AuctionClient;
+import common.*;
+import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,30 +15,24 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-
-import services.ApiService;
 import utils.DialogUtils;
 
-public class RegisterApp {
+public class RegisterApp extends Application {
 
-    public void showWindow() {
-        Stage stage = new Stage();
-        stage.setTitle("Hệ thống Đấu giá - Đăng ký");
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Hệ thống Đấu giá - Đăng ký");
 
-        // Giao diện nền
         VBox root = new VBox();
         root.setAlignment(Pos.CENTER);
-        root.setBackground(new Background(new BackgroundFill(Color.web("#E8ECEF"), CornerRadii.EMPTY, Insets.EMPTY)));
+        root.setStyle("-fx-background-color: #E8ECEF;");
 
-        // Form đăng ký
         VBox layout = new VBox(15);
         layout.setAlignment(Pos.CENTER);
-        layout.setPadding(new Insets(30, 30, 30, 30));
         layout.setMaxWidth(380);
-        layout.setBackground(new Background(new BackgroundFill(Color.WHITE, new CornerRadii(30), Insets.EMPTY)));
-        layout.setEffect(new DropShadow(20, Color.rgb(0, 0, 0, 0.1)));
+        layout.setPadding(new Insets(30));
+        layout.setStyle("-fx-background-color: white; -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 20, 0, 0, 10);");
 
-        // Tiêu đề
         Label lblIcon = new Label("⚖");
         lblIcon.setFont(Font.font("System", 40));
         lblIcon.setTextFill(Color.web("#24416B"));
@@ -44,152 +41,129 @@ public class RegisterApp {
         lblTitle.setFont(Font.font("System", FontWeight.BOLD, 22));
         lblTitle.setTextFill(Color.web("#24416B"));
 
-        VBox titleBox = new VBox(5, lblIcon, lblTitle);
-        titleBox.setAlignment(Pos.CENTER);
-        titleBox.setPadding(new Insets(0, 0, 10, 0));
-
-        // Style chung cho ô nhập liệu
-        Background tfBg = new Background(new BackgroundFill(Color.WHITE, new CornerRadii(20), Insets.EMPTY));
-        Border tfBorder = new Border(new BorderStroke(Color.web("#D1D5DB"), BorderStrokeStyle.SOLID, new CornerRadii(20), new BorderWidths(1.5)));
-
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("Tên đăng nhập");
         txtUsername.setPrefHeight(45);
-        txtUsername.setBackground(tfBg);
-        txtUsername.setBorder(tfBorder);
+        txtUsername.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
         txtUsername.setPadding(new Insets(0, 20, 0, 20));
 
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("Mật khẩu");
         txtPassword.setPrefHeight(45);
-        txtPassword.setBackground(tfBg);
-        txtPassword.setBorder(tfBorder);
+        txtPassword.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
         txtPassword.setPadding(new Insets(0, 20, 0, 20));
 
-        PasswordField txtConfirmPassword = new PasswordField();
-        txtConfirmPassword.setPromptText("Nhập lại mật khẩu");
-        txtConfirmPassword.setPrefHeight(45);
-        txtConfirmPassword.setBackground(tfBg);
-        txtConfirmPassword.setBorder(tfBorder);
-        txtConfirmPassword.setPadding(new Insets(0, 20, 0, 20));
+        PasswordField txtConfirm = new PasswordField();
+        txtConfirm.setPromptText("Nhập lại mật khẩu");
+        txtConfirm.setPrefHeight(45);
+        txtConfirm.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
+        txtConfirm.setPadding(new Insets(0, 20, 0, 20));
+
+        TextField txtEmail = new TextField();
+        txtEmail.setPromptText("Email (tùy chọn)");
+        txtEmail.setPrefHeight(45);
+        txtEmail.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
+        txtEmail.setPadding(new Insets(0, 20, 0, 20));
 
         ComboBox<String> cbRole = new ComboBox<>();
-        cbRole.getItems().addAll("Người đấu giá (Bidder)", "Người bán (Seller)", "Người dùng thường (User)");
-        cbRole.setValue("Người đấu giá (Bidder)");
+        cbRole.getItems().addAll("BIDDER", "SELLER");
+        cbRole.setValue("BIDDER");
         cbRole.setPrefHeight(45);
-        cbRole.setMaxWidth(Double.MAX_VALUE);
-        cbRole.setBackground(tfBg);
-        cbRole.setBorder(tfBorder);
+        cbRole.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
 
-        // Nút Đăng Ký
         Button btnRegister = new Button("ĐĂNG KÝ");
-        btnRegister.setBackground(new Background(new BackgroundFill(Color.web("#24416B"), new CornerRadii(25), Insets.EMPTY)));
-        btnRegister.setTextFill(Color.WHITE);
-        btnRegister.setFont(Font.font("System", FontWeight.BOLD, 14));
-        btnRegister.setPrefHeight(45);
         btnRegister.setMaxWidth(Double.MAX_VALUE);
+        btnRegister.setPrefHeight(45);
+        btnRegister.setStyle("-fx-background-color: #24416B; -fx-background-radius: 25; -fx-text-fill: white; -fx-font-weight: bold;");
         btnRegister.setCursor(Cursor.HAND);
 
-        Label lblError = new Label("");
-        lblError.setTextFill(Color.web("#E53935"));
-        lblError.setFont(Font.font("System", 12));
+        Label lblError = new Label();
+        lblError.setTextFill(Color.RED);
 
-        // Nút Quay lại Đăng Nhập
         HBox loginBox = new HBox(5);
         loginBox.setAlignment(Pos.CENTER);
         Label lblAsk = new Label("ĐÃ CÓ TÀI KHOẢN?");
-        lblAsk.setTextFill(Color.web("#8898AA"));
-        lblAsk.setFont(Font.font("System", 12));
-
         Label lblLogin = new Label("ĐĂNG NHẬP");
         lblLogin.setTextFill(Color.web("#24416B"));
         lblLogin.setFont(Font.font("System", FontWeight.BOLD, 12));
         lblLogin.setCursor(Cursor.HAND);
+        loginBox.getChildren().addAll(lblAsk, lblLogin);
 
-        // =========================================================================
-        // SỰ KIỆN NÚT ĐĂNG KÝ (Đã fix lỗi biến final)
-        // =========================================================================
+        layout.getChildren().addAll(lblIcon, lblTitle, txtUsername, txtPassword, txtConfirm, txtEmail, cbRole, btnRegister, loginBox, lblError);
+        root.getChildren().add(layout);
+
+        Scene scene = new Scene(root, 600, 650);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
+
         btnRegister.setOnAction(e -> {
             String username = txtUsername.getText().trim();
             String password = txtPassword.getText().trim();
-            String confirmPassword = txtConfirmPassword.getText().trim();
-            String selectedRole = cbRole.getValue();
+            String confirm = txtConfirm.getText().trim();
+            String email = txtEmail.getText().trim();
+            String role = cbRole.getValue();
 
-            // 1. Validate form
-            if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-                lblError.setText("✕ Vui lòng nhập đầy đủ thông tin");
+            if (username.isEmpty() || password.isEmpty()) {
+                lblError.setText("Vui lòng nhập tên và mật khẩu");
+                return;
+            }
+            if (!password.equals(confirm)) {
+                lblError.setText("Mật khẩu không khớp");
+                return;
+            }
+            if (password.length() < 6) {
+                lblError.setText("Mật khẩu tối thiểu 6 ký tự");
                 return;
             }
 
-            if (!password.equals(confirmPassword)) {
-                lblError.setText("✕ Mật khẩu nhập lại không khớp");
-                return;
-            }
-
-            // 2. Chuyển đổi Role (ĐÃ FIX THÀNH HẰNG SỐ FINAL)
-            final String finalRoleCode;
-            if (selectedRole.equals("Người bán (Seller)")) {
-                finalRoleCode = "seller";
-            } else if (selectedRole.equals("Người dùng thường (User)")) {
-                finalRoleCode = "user";
-            } else {
-                finalRoleCode = "bidder";
-            }
-
-            // 3. UX/UI: Đổi trạng thái báo hiệu đang gọi mạng
             btnRegister.setText("ĐANG XỬ LÝ...");
             btnRegister.setDisable(true);
             lblError.setText("");
 
-            // 4. Gọi API bất đồng bộ
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
+            new Thread(() -> {
                 try {
-                    // Truyền finalRoleCode hợp lệ vào luồng ngầm
-                    String responseData = ApiService.getInstance().register(username, password, finalRoleCode);
+                    AuctionClient client = new AuctionClient();
+                    client.connect("localhost", 9999);
+                    client.startRealtimeListener(null);
+                    User newUser = new User();
+                    newUser.setUsername(username);
+                    newUser.setPassword(password);
+                    newUser.setEmail(email.isEmpty() ? null : email);
+                    newUser.setRole(role);
+                    ResponseMessage resp = client.register(newUser);
+                    client.disconnect();
 
-                    // THÀNH CÔNG
                     Platform.runLater(() -> {
-                        DialogUtils.showInfo("Thành công", "Đăng ký tài khoản thành công!");
-                        try {
-                            LoginApp loginApp = new LoginApp();
-                            loginApp.start(new Stage());
-                            stage.close();
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
+                        if (resp.getCode() == ResponseCode.SUCCESS) {
+                            DialogUtils.showInfo("Thành công", "Đăng ký thành công!");
+                            new LoginApp().start(new Stage());
+                            primaryStage.close();
+                        } else {
+                            lblError.setText("✕ " + resp.getMessage());
+                            btnRegister.setText("ĐĂNG KÝ");
+                            btnRegister.setDisable(false);
                         }
                     });
-
                 } catch (Exception ex) {
-                    // THẤT BẠI
+                    ex.printStackTrace();
                     Platform.runLater(() -> {
-                        lblError.setText("✕ " + ex.getMessage());
-                        // Nhả nút bấm ra để thử lại
+                        lblError.setText("✕ Lỗi kết nối: " + ex.getMessage());
                         btnRegister.setText("ĐĂNG KÝ");
                         btnRegister.setDisable(false);
                     });
                 }
-            });
+            }).start();
         });
-        // =========================================================================
 
         lblLogin.setOnMouseClicked(e -> {
-            try {
-                LoginApp loginApp = new LoginApp();
-                loginApp.start(new Stage());
-                stage.close();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            new LoginApp().start(new Stage());
+            primaryStage.close();
         });
+    }
 
-        loginBox.getChildren().addAll(lblAsk, lblLogin);
-
-        layout.getChildren().addAll(titleBox, txtUsername, txtPassword, txtConfirmPassword, cbRole, btnRegister, loginBox, lblError);
-        root.getChildren().add(layout);
-
-        Scene scene = new Scene(root, 600, 600);
-        stage.setScene(scene);
-        stage.setResizable(false);
-        stage.show();
+    public static void main(String[] args) {
+        launch(args);
     }
 }

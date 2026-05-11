@@ -1,5 +1,9 @@
 package view;
 
+import client.AuctionClient;
+import common.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -14,160 +18,138 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
-// Thêm thư viện gọi mạng của bạn vào
-import services.ApiService;
-import utils.DialogUtils;
+import java.time.LocalDateTime;
+import java.util.Map;
 
 public class LoginApp extends Application {
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    private Gson gson;
 
     @Override
     public void start(Stage primaryStage) {
-        // 1. Giao diện nền (Màu xám/đen nhạt để làm nổi bật Form trắng)
+        gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+                .create();
+
+        primaryStage.setTitle("Hệ thống Đấu giá - Đăng nhập");
+
         VBox root = new VBox();
         root.setAlignment(Pos.CENTER);
-        root.setBackground(new Background(new BackgroundFill(Color.web("#E8ECEF"), CornerRadii.EMPTY, Insets.EMPTY)));
+        root.setStyle("-fx-background-color: #E8ECEF;");
 
-        // 2. Form đăng nhập (Trắng tinh, bo góc siêu tròn giống ảnh)
         VBox loginBox = new VBox(20);
         loginBox.setAlignment(Pos.CENTER);
-        loginBox.setPadding(new Insets(40, 30, 40, 30));
         loginBox.setMaxWidth(350);
-        loginBox.setBackground(new Background(new BackgroundFill(Color.WHITE, new CornerRadii(30), Insets.EMPTY)));
-        loginBox.setEffect(new DropShadow(20, Color.rgb(0, 0, 0, 0.1)));
+        loginBox.setPadding(new Insets(30));
+        loginBox.setStyle("-fx-background-color: white; -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 20, 0, 0, 10);");
 
-        // Icon Cán cân công lý (Mô phỏng logo trong ảnh)
-        Label lblIcon = new Label("⚖");
-        lblIcon.setFont(Font.font("System", 45));
-        lblIcon.setTextFill(Color.web("#24416B"));
-
-        // 3. Tiêu đề (Màu Xanh Navy)
-        Label lblTitle = new Label("ĐẤU GIÁ");
-        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 26));
+        Label lblTitle = new Label("ĐĂNG NHẬP");
+        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 22));
         lblTitle.setTextFill(Color.web("#24416B"));
 
-        Label lblSubTitle = new Label("ĐĂNG NHẬP ĐỂ TIẾP TỤC");
-        lblSubTitle.setFont(Font.font("System", 12));
-        lblSubTitle.setTextFill(Color.web("#8898AA"));
-
-        VBox titleBox = new VBox(5, lblIcon, lblTitle, lblSubTitle);
-        titleBox.setAlignment(Pos.CENTER);
-        titleBox.setPadding(new Insets(0, 0, 15, 0));
-
-        // Style chung cho ô nhập liệu (Bo tròn dạng viên thuốc)
-        Background tfBg = new Background(new BackgroundFill(Color.WHITE, new CornerRadii(20), Insets.EMPTY));
-        Border tfBorder = new Border(new BorderStroke(Color.web("#D1D5DB"), BorderStrokeStyle.SOLID, new CornerRadii(20), new BorderWidths(1.5)));
-
-        // 4. Ô nhập liệu
         TextField txtUser = new TextField();
-        txtUser.setPromptText("Email hoặc tên đăng nhập");
+        txtUser.setPromptText("Tên đăng nhập");
         txtUser.setPrefHeight(45);
-        txtUser.setBackground(tfBg);
-        txtUser.setBorder(tfBorder);
+        txtUser.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
         txtUser.setPadding(new Insets(0, 20, 0, 20));
 
         PasswordField txtPass = new PasswordField();
         txtPass.setPromptText("Mật khẩu");
         txtPass.setPrefHeight(45);
-        txtPass.setBackground(tfBg);
-        txtPass.setBorder(tfBorder);
+        txtPass.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #D1D5DB; -fx-border-width: 1.5;");
         txtPass.setPadding(new Insets(0, 20, 0, 20));
 
-        // 5. Nút Đăng nhập (Màu Xanh Navy đậm, bo tròn viên thuốc)
+        Label lblError = new Label();
+        lblError.setTextFill(Color.RED);
+
         Button btnLogin = new Button("ĐĂNG NHẬP");
         btnLogin.setMaxWidth(Double.MAX_VALUE);
         btnLogin.setPrefHeight(45);
-        btnLogin.setTextFill(Color.WHITE);
-        btnLogin.setFont(Font.font("System", FontWeight.BOLD, 14));
-        btnLogin.setBackground(new Background(new BackgroundFill(Color.web("#24416B"), new CornerRadii(25), Insets.EMPTY)));
+        btnLogin.setStyle("-fx-background-color: #24416B; -fx-background-radius: 25; -fx-text-fill: white; -fx-font-weight: bold;");
         btnLogin.setCursor(Cursor.HAND);
 
-        // 6. Label Lỗi mô phỏng trong ảnh
-        Label lblError = new Label("");
-        lblError.setTextFill(Color.web("#E53935"));
-        lblError.setFont(Font.font("System", 12));
+        HBox registerBox = new HBox(5);
+        registerBox.setAlignment(Pos.CENTER);
+        Label lblAsk = new Label("Chưa có tài khoản?");
+        Label lblRegister = new Label("Đăng ký ngay");
+        lblRegister.setTextFill(Color.web("#24416B"));
+        lblRegister.setFont(Font.font("System", FontWeight.BOLD, 12));
+        lblRegister.setCursor(Cursor.HAND);
+        registerBox.getChildren().addAll(lblAsk, lblRegister);
 
-        // =========================================================================
-        // ĐỘNG CƠ API CHẠY NGẦM - ĐÃ ĐƯỢC CẤY GHÉP VÀO SỰ KIỆN NÚT BẤM
-        // =========================================================================
+        loginBox.getChildren().addAll(lblTitle, txtUser, txtPass, btnLogin, registerBox, lblError);
+        root.getChildren().add(loginBox);
+
+        Scene scene = new Scene(root, 600, 550);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
+
         btnLogin.setOnAction(e -> {
             String username = txtUser.getText().trim();
             String password = txtPass.getText().trim();
-
             if (username.isEmpty() || password.isEmpty()) {
-                lblError.setText("✕ Vui lòng nhập đầy đủ thông tin");
+                lblError.setText("Vui lòng nhập đủ thông tin!");
                 return;
             }
-
             btnLogin.setText("ĐANG XỬ LÝ...");
             btnLogin.setDisable(true);
             lblError.setText("");
 
-            // Dùng luồng chạy ngầm để không làm đơ giao diện bóng bẩy của bạn
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
+            new Thread(() -> {
                 try {
-                    // Gọi Server qua ApiService
-                    String responseData = ApiService.getInstance().login(username, password);
+                    AuctionClient client = new AuctionClient();
+                    client.connect("localhost", 9999);
+                    client.startRealtimeListener(null);
+                    ResponseMessage resp = client.login(username, password);
+                    client.disconnect();
 
-                    // NẾU THÀNH CÔNG -> Chuyển về luồng giao diện chính để đổi màn hình
                     Platform.runLater(() -> {
-                        DialogUtils.showInfo("Thành công", "Đăng nhập thành công!");
-                        try {
+                        if (resp.getCode() == ResponseCode.SUCCESS) {
+                            Object data = resp.getData();
+                            User user = null;
+                            if (data instanceof User) {
+                                user = (User) data;
+                            } else if (data instanceof Map) {
+                                user = gson.fromJson(gson.toJson(data), User.class);
+                            }
+                            if (user == null) {
+                                lblError.setText("Lỗi dữ liệu user");
+                                btnLogin.setText("ĐĂNG NHẬP");
+                                btnLogin.setDisable(false);
+                                return;
+                            }
                             MainApp mainApp = new MainApp();
-                            // Tạm thời truyền role mặc định là "Bidder" để MainApp hoạt động,
-                            // sau này nhóm làm xong API xịn sẽ bóc tách Role thật từ responseData
-                            mainApp.showWindow(username, "Bidder");
+                            mainApp.showWindow(user.getUsername(), user.getRole());
                             primaryStage.close();
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
+                        } else {
+                            lblError.setText("✕ " + resp.getMessage());
+                            btnLogin.setText("ĐĂNG NHẬP");
+                            btnLogin.setDisable(false);
                         }
                     });
-
                 } catch (Exception ex) {
-                    // NẾU THẤT BẠI (Do sai pass hoặc sập mạng) -> Báo chữ đỏ
+                    ex.printStackTrace();
                     Platform.runLater(() -> {
-                        lblError.setText("✕ " + ex.getMessage());
-                        // Trả lại nút bấm gốc để người dùng có thể thử lại
+                        lblError.setText("✕ Lỗi kết nối: " + ex.getMessage());
                         btnLogin.setText("ĐĂNG NHẬP");
                         btnLogin.setDisable(false);
                     });
                 }
-            });
+            }).start();
         });
-        // =========================================================================
-
-        // 7. Chuyển sang Đăng Ký
-        HBox registerBox = new HBox(5);
-        registerBox.setAlignment(Pos.CENTER);
-        Label lblAsk = new Label("CHƯA CÓ TÀI KHOẢN?");
-        lblAsk.setTextFill(Color.web("#8898AA"));
-        lblAsk.setFont(Font.font("System", 12));
-
-        Label lblRegister = new Label("ĐĂNG KÝ NGAY");
-        lblRegister.setTextFill(Color.web("#24416B"));
-        lblRegister.setFont(Font.font("System", FontWeight.BOLD, 12));
-        lblRegister.setCursor(Cursor.HAND);
 
         lblRegister.setOnMouseClicked(e -> {
             try {
-                RegisterApp registerApp = new RegisterApp();
-                registerApp.showWindow();
+                new RegisterApp().start(new Stage());
                 primaryStage.close();
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
-        registerBox.getChildren().addAll(lblAsk, lblRegister);
+    }
 
-        loginBox.getChildren().addAll(titleBox, txtUser, txtPass, btnLogin, registerBox, lblError);
-        root.getChildren().add(loginBox);
-
-        Scene scene = new Scene(root, 600, 550);
-        primaryStage.setTitle("Hệ thống Đấu giá - Đăng nhập");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+    public static void main(String[] args) {
+        launch(args);
     }
 }

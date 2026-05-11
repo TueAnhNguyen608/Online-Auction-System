@@ -1,0 +1,149 @@
+/* ========== GIAO DIỆN CHUNG ========== */
+.root {
+    -fx-font-family: "Segoe UI", "System", "Helvetica Neue", sans-serif;
+    -fx-background-color: #E8ECEF;
+}
+
+/* Card / Panel chính */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 8);
+    -fx-padding: 20;
+}
+
+/* Tiêu đề cấp 1 */
+.title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #24416B;
+    -fx-padding: 0 0 15 0;
+}
+
+/* Tiêu đề cấp 2 */
+.subtitle {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2C3E50;
+    -fx-padding: 10 0 10 0;
+}
+
+/* ========== NÚT ========== */
+.button-primary {
+    -fx-background-color: #24416B;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 25;
+    -fx-padding: 8 25 8 25;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+}
+.button-primary:hover {
+    -fx-background-color: #1a2f4f;
+}
+.button-primary:pressed {
+    -fx-background-color: #0f1f36;
+}
+
+.button-secondary {
+    -fx-background-color: #E8ECEF;
+    -fx-text-fill: #24416B;
+    -fx-font-weight: bold;
+    -fx-background-radius: 25;
+    -fx-border-color: #24416B;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 25;
+    -fx-padding: 6 20 6 20;
+    -fx-cursor: hand;
+}
+.button-secondary:hover {
+    -fx-background-color: #d0d9e0;
+}
+
+.button-danger {
+    -fx-background-color: #E53935;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 25;
+    -fx-padding: 6 20 6 20;
+    -fx-cursor: hand;
+}
+.button-danger:hover {
+    -fx-background-color: #c62828;
+}
+
+/* ========== Ô NHẬP LIỆU ========== */
+.text-field, .password-field, .text-area, .combo-box {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-border-color: #D1D5DB;
+    -fx-border-radius: 20;
+    -fx-border-width: 1.5;
+    -fx-padding: 8 18 8 18;
+    -fx-font-size: 13px;
+}
+.text-field:focused, .password-field:focused, .text-area:focused, .combo-box:focused {
+    -fx-border-color: #24416B;
+    -fx-border-width: 2;
+}
+
+/* ========== BẢNG (TableView) ========== */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-background-radius: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 4);
+}
+.table-view .column-header-background {
+    -fx-background-color: #24416B;
+    -fx-background-radius: 20 20 0 0;
+}
+.table-view .column-header, .table-view .filler {
+    -fx-background-color: transparent;
+    -fx-size: 45;
+}
+.table-view .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+.table-view .table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: #E8ECEF;
+    -fx-border-width: 0 0 1 0;
+}
+.table-view .table-row-cell:odd {
+    -fx-background-color: #F8F9FA;
+}
+.table-view .table-row-cell:selected {
+    -fx-background-color: #D0E3F0;
+}
+.table-view .table-row-cell:selected .text {
+    -fx-fill: #24416B;
+    -fx-font-weight: bold;
+}
+
+/* ========== MENU BAR ========== */
+.menu-bar {
+    -fx-background-color: white;
+    -fx-background-radius: 30;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);
+}
+.menu {
+    -fx-text-fill: #24416B;
+    -fx-font-weight: bold;
+}
+.menu-item:hover {
+    -fx-background-color: #E8ECEF;
+}
+
+/* ========== LABEL THÔNG BÁO ========== */
+.error-label {
+    -fx-text-fill: #E53935;
+    -fx-font-size: 12px;
+    -fx-padding: 5 0 0 0;
+}
+.success-label {
+    -fx-text-fill: #27ae60;
+    -fx-font-size: 12px;
+    -fx-padding: 5 0 0 0;
+}

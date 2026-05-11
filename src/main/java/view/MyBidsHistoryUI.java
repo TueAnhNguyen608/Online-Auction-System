@@ -1,7 +1,11 @@
+
 package view;
 
 import client.AuctionClient;
 import common.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,18 +22,24 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import utils.DialogUtils;
 
+import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 public class MyBidsHistoryUI {
 
     private AuctionClient client;
     private ObservableList<Bid> bidHistory = FXCollections.observableArrayList();
     private TableView<Bid> tableView;
+    private Gson gson;
 
     public void show(AuctionClient client) {
         this.client = client;
+        this.gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+                .create();
         Stage stage = new Stage();
         stage.setTitle("📜 Lịch sử đấu giá của tôi");
 
@@ -37,13 +47,15 @@ public class MyBidsHistoryUI {
         setupTable();
 
         Button btnRefresh = new Button("🔄 Tải lại");
-        styleButton(btnRefresh, "#24416B"); // xanh navy giống LoginApp
+        styleButton(btnRefresh, "#24416B");
+        btnRefresh.setOnAction(e -> loadBidHistory());
 
         VBox root = new VBox(10, btnRefresh, tableView);
         root.setPadding(new Insets(15));
         root.setStyle("-fx-background-color: #E8ECEF;");
 
         Scene scene = new Scene(root, 900, 500);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         stage.setScene(scene);
         stage.show();
 
@@ -101,8 +113,7 @@ public class MyBidsHistoryUI {
 
         tableView.getColumns().addAll(colItemName, colAmount, colTime, colResult);
         tableView.setItems(bidHistory);
-        // Style bảng để đồng bộ: nền trắng, bo góc nhẹ
-        tableView.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 5);");
+        tableView.setStyle("-fx-background-color: white; -fx-background-radius: 20;");
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
@@ -113,18 +124,28 @@ public class MyBidsHistoryUI {
                 Platform.runLater(() -> {
                     if (response.getCode() == ResponseCode.SUCCESS) {
                         Object data = response.getData();
+                        List<Bid> history = null;
                         if (data instanceof List) {
-                            List<?> rawList = (List<?>) data;
-                            if (!rawList.isEmpty() && rawList.get(0) instanceof Bid) {
-                                @SuppressWarnings("unchecked")
-                                List<Bid> history = (List<Bid>) rawList;
-                                bidHistory.clear();
-                                bidHistory.addAll(history);
+                            List<?> list = (List<?>) data;
+                            if (!list.isEmpty()) {
+                                Object first = list.get(0);
+                                if (first instanceof Bid) {
+                                    history = (List<Bid>) list;
+                                } else if (first instanceof Map) {
+                                    // Convert LinkedTreeMap list to Bid list
+                                    String json = gson.toJson(data);
+                                    Type listType = new TypeToken<List<Bid>>(){}.getType();
+                                    history = gson.fromJson(json, listType);
+                                }
                             } else {
-                                DialogUtils.showError("Lỗi dữ liệu", "Dữ liệu trả về không đúng định dạng (cần List<Bid>)");
+                                history = List.of();
                             }
+                        }
+                        if (history != null) {
+                            bidHistory.clear();
+                            bidHistory.addAll(history);
                         } else {
-                            DialogUtils.showError("Lỗi dữ liệu", "Server trả về kiểu không mong muốn: " + data.getClass());
+                            DialogUtils.showError("Lỗi dữ liệu", "Dữ liệu trả về không đúng định dạng (cần List<Bid>)");
                         }
                     } else {
                         DialogUtils.showError("Lỗi", response.getMessage());
@@ -136,7 +157,6 @@ public class MyBidsHistoryUI {
         }).start();
     }
 
-    // Helper style cho nút (giống ProfileForm)
     private void styleButton(Button btn, String colorHex) {
         btn.setPrefHeight(40);
         btn.setTextFill(Color.WHITE);

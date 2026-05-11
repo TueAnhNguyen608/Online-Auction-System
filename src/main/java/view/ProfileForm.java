@@ -54,6 +54,7 @@ public class ProfileForm {
         root.setStyle("-fx-background-color: #E8ECEF;");
 
         Scene scene = new Scene(root, 550, 500);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         stage.setScene(scene);
         stage.show();
     }
