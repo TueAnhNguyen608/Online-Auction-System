@@ -10,7 +10,7 @@ public class MainApp extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         // Đường dẫn mới trỏ thẳng vào fxml/bidding/
-        URL fxmlLocation = getClass().getResource("/fxml/notification/MainDashboardUI.fxml");
+        URL fxmlLocation = getClass().getResource("/fxml/bidding/MainDashboardUI.fxml");
 
         if (fxmlLocation == null) {
             System.err.println("LỖI: Không tìm thấy file tại /fxml/bidding/MainDashboardUI.fxml");
