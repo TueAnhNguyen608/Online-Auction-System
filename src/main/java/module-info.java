@@ -22,5 +22,9 @@ module ten.project.cua.ban {
     exports view.admin;  // THÊM DÒNG NÀY
     exports server;
     exports common;
+
+    opens view.bidding to javafx.fxml;
+    exports view.bidding;
+    opens view.notification to javafx.fxml;
 }
 
