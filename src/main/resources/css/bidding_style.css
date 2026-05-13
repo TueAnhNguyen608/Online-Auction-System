@@ -1,0 +1,737 @@
+/* ═══════════════════════════════════════════════════════════════
+   HỆ THỐNG ĐẤU GIÁ  –  bidding_style.css
+   Match 100% ảnh thiết kế
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── ROOT ─────────────────────────────────────────────────────── */
+.root-pane {
+    -fx-background-color: #0c1535;
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+}
+
+/* ── NAVBAR ───────────────────────────────────────────────────── */
+.navbar {
+    -fx-background-color: #0e1c40;
+    -fx-border-color:     #1b2f5e;
+    -fx-border-width:     0 0 1 0;
+    -fx-min-height:       65px;
+    -fx-pref-height:      65px;
+}
+
+.nav-brand {
+    -fx-text-fill:    #f0a500;
+    -fx-font-size:    20px;
+    -fx-font-weight:  bold;
+}
+
+.nav-avatar-wrap {
+    -fx-background-color:  #1b2f5e;
+    -fx-background-radius: 22;
+    -fx-min-width:  44;  -fx-max-width:  44;
+    -fx-min-height: 44;  -fx-max-height: 44;
+}
+
+.nav-user-text {
+    -fx-text-fill:  #c8daf0;
+    -fx-font-size:  14px;
+}
+
+.nav-chevron {
+    -fx-text-fill:  #7a9cc4;
+    -fx-font-size:  12px;
+}
+
+/* ── SCROLL / PAGE ────────────────────────────────────────────── */
+.page-scroll {
+    -fx-background-color: #0c1535;
+    -fx-background:       #0c1535;
+    -fx-border-color:     transparent;
+}
+
+.page-scroll > .viewport {
+    -fx-background-color: #0c1535;
+}
+
+.page-wrap {
+    -fx-background-color: #0c1535;
+}
+
+/* ── WELCOME ──────────────────────────────────────────────────── */
+.lbl-welcome {
+    -fx-text-fill:   #f0a500;
+    -fx-font-size:   26px;
+    -fx-font-weight: bold;
+}
+
+.lbl-welcome-sub {
+    -fx-text-fill:  #8a9fc4;
+    -fx-font-size:  13px;
+}
+
+/* ── SECTION HEADING ──────────────────────────────────────────── */
+.section-icon {
+    -fx-font-size:  20px;
+}
+
+.section-title {
+    -fx-text-fill:   #f0a500;
+    -fx-font-size:   15px;
+    -fx-font-weight: bold;
+}
+
+/* ── SECTION BOX (container có border quanh 3 cards) ─────────── */
+.section-box {
+    -fx-background-color:  #11224a;
+    -fx-background-radius: 12;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     12;
+    -fx-border-width:      1;
+    -fx-padding:           22 22 26 22;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FEATURE CARDS  (Sản phẩm / Đấu giá / Lịch sử)
+   ═══════════════════════════════════════════════════════════════ */
+.feat-card {
+    -fx-background-color:  #0e1c40;
+    -fx-background-radius: 12;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     12;
+    -fx-border-width:      1;
+    -fx-padding:           32 24 28 24;
+    -fx-pref-height:       310;
+    -fx-min-height:        290;
+}
+
+.feat-card:hover {
+    -fx-background-color: #162550;
+    -fx-border-color:     #2d4880;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 16, 0, 0, 3);
+}
+
+/* Icon circles */
+.icon-circle {
+    -fx-background-radius: 50;
+    -fx-min-width:  100;  -fx-max-width:  100;
+    -fx-min-height: 100;  -fx-max-height: 100;
+}
+
+.ic-blue   { -fx-background-color: #1a4fcc; }
+.ic-green  { -fx-background-color: #157a38; }
+.ic-purple { -fx-background-color: #622dbd; }
+
+.icon-emoji {
+    -fx-font-size:  34px;
+    -fx-text-fill:  white;
+}
+
+.feat-card-name {
+    -fx-text-fill:   #ffffff;
+    -fx-font-size:   16px;
+    -fx-font-weight: bold;
+    -fx-text-alignment: CENTER;
+}
+
+.feat-card-desc {
+    -fx-text-fill:      #8a9fc4;
+    -fx-font-size:      13px;
+    -fx-text-alignment: CENTER;
+    -fx-wrap-text:      true;
+    -fx-line-spacing:   3;
+}
+
+/* Feature buttons */
+.feat-btn {
+    -fx-text-fill:        white;
+    -fx-font-size:        14px;
+    -fx-font-weight:      bold;
+    -fx-cursor:           hand;
+    -fx-background-radius: 8;
+    -fx-border-radius:    8;
+    -fx-border-color:     transparent;
+    -fx-padding:          13 0 13 0;
+}
+
+.feat-btn-blue            { -fx-background-color: #1a4fcc; }
+.feat-btn-blue:hover      { -fx-background-color: #2060e0; -fx-effect: dropshadow(gaussian, rgba(26,79,204,0.5), 10, 0, 0, 2); }
+.feat-btn-blue:pressed    { -fx-background-color: #1238a0; }
+
+.feat-btn-green           { -fx-background-color: #157a38; }
+.feat-btn-green:hover     { -fx-background-color: #1fa84d; -fx-effect: dropshadow(gaussian, rgba(21,122,56,0.5), 10, 0, 0, 2); }
+.feat-btn-green:pressed   { -fx-background-color: #0e5527; }
+
+.feat-btn-purple          { -fx-background-color: #622dbd; }
+.feat-btn-purple:hover    { -fx-background-color: #7b3de8; -fx-effect: dropshadow(gaussian, rgba(98,45,189,0.5), 10, 0, 0, 2); }
+.feat-btn-purple:pressed  { -fx-background-color: #471e8a; }
+
+/* ═══════════════════════════════════════════════════════════════
+   STAT CARDS  (Tổng quan – 4 cards)
+   ═══════════════════════════════════════════════════════════════ */
+.stat-card {
+    -fx-background-color:  #11224a;
+    -fx-background-radius: 12;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     12;
+    -fx-border-width:      1;
+    -fx-padding:           20 18 20 18;
+    -fx-min-height:        96;
+}
+
+.stat-card:hover {
+    -fx-background-color: #162550;
+    -fx-border-color:     #2d4880;
+}
+
+.stat-circle {
+    -fx-background-radius: 26;
+    -fx-min-width:  52;  -fx-max-width:  52;
+    -fx-min-height: 52;  -fx-max-height: 52;
+}
+
+.sc-blue  { -fx-background-color: #1a4fcc; }
+.sc-green { -fx-background-color: #157a38; }
+.sc-gold  { -fx-background-color: #b05000; }
+.sc-red   { -fx-background-color: #c01c1c; }
+
+.stat-icon {
+    -fx-font-size:  20px;
+    -fx-text-fill:  white;
+}
+
+.stat-num {
+    -fx-text-fill:   #ffffff;
+    -fx-font-size:   26px;
+    -fx-font-weight: bold;
+}
+
+.stat-num-sm {
+    -fx-text-fill:   #ffffff;
+    -fx-font-size:   16px;
+    -fx-font-weight: bold;
+}
+
+.stat-lbl {
+    -fx-text-fill:  #8a9fc4;
+    -fx-font-size:  12px;
+}
+
+.stat-sub-green {
+    -fx-text-fill:   #22c55e;
+    -fx-font-size:   12px;
+    -fx-font-weight: bold;
+}
+
+.stat-sub-red {
+    -fx-text-fill:   #ef4444;
+    -fx-font-size:   12px;
+    -fx-font-weight: bold;
+}
+
+.stat-muted {
+    -fx-text-fill:  #8a9fc4;
+    -fx-font-size:  12px;
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────────── */
+.scroll-bar                          { -fx-background-color: transparent; }
+.scroll-bar .thumb                   { -fx-background-color: #1b2f5e; -fx-background-radius: 4; }
+.scroll-bar .thumb:hover             { -fx-background-color: #f0a500; }
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button        { -fx-background-color: transparent; -fx-padding: 2; }
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow         { -fx-shape: ""; -fx-padding: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED STYLES – dùng chung cho ProductListPanel, BiddingPanel…
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Navbar shared */
+.navbar-title   { -fx-text-fill: #f0a500; -fx-font-size: 20px; -fx-font-weight: bold; }
+.user-label     { -fx-text-fill: #c8daf0; -fx-font-size: 13px; }
+.dropdown-arrow { -fx-text-fill: #7a9cc4; }
+
+/* Tabs */
+.tab-bar {
+    -fx-background-color: #0e1c40;
+    -fx-padding:          0 24 0 24;
+    -fx-border-color:     #1b2f5e;
+    -fx-border-width:     0 0 1 0;
+}
+.tab-button {
+    -fx-background-color: transparent;
+    -fx-text-fill:        #7a9cc4;
+    -fx-font-size:        13px;
+    -fx-font-weight:      bold;
+    -fx-padding:          14 28 14 28;
+    -fx-cursor:           hand;
+    -fx-border-color:     transparent;
+    -fx-background-radius: 0;
+}
+.tab-button:hover { -fx-text-fill: #c8daf0; -fx-background-color: rgba(255,255,255,0.04); }
+.tab-active       {
+    -fx-background-color: #f0a500 !important;
+    -fx-text-fill:        #0c1535 !important;
+    -fx-background-radius: 4 4 0 0;
+}
+
+/* Content panels */
+.content-area { -fx-background-color: #0c1535; -fx-padding: 20 28 20 28; }
+.left-panel   { -fx-background-color: transparent; -fx-padding: 0 18 0 0; }
+.right-panel  {
+    -fx-background-color:  #0e1c40;
+    -fx-background-radius: 12;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     12;
+    -fx-border-width:      1;
+    -fx-padding:           20;
+}
+
+/* Search */
+.search-bar-container {
+    -fx-background-color:  #11224a;
+    -fx-background-radius: 8;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     8;
+    -fx-border-width:      1;
+}
+.search-field {
+    -fx-background-color: transparent;
+    -fx-text-fill:        #ffffff;
+    -fx-prompt-text-fill: #4a6a8a;
+    -fx-padding:          10 14 10 14;
+    -fx-font-size:        13px;
+    -fx-border-color:     transparent;
+}
+.search-button {
+    -fx-background-color: transparent;
+    -fx-text-fill:        #7a9cc4;
+    -fx-font-size:        15px;
+    -fx-cursor:           hand;
+}
+
+.product-table {
+    -fx-background-color: #071525;
+    -fx-border-color: #2A4A6E;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    /* ✅ Đây là 2 property quan trọng nhất cho màu xen kẽ hàng */
+    -fx-control-inner-background:     #0F2137;
+    -fx-control-inner-background-alt: #0C1A2E;
+    -fx-table-cell-border-color: #2A4A6E;
+}
+/* Pagination */
+.pagination-bar { -fx-padding: 4 0 0 0; }
+.page-btn {
+    -fx-background-color: #11224a;
+    -fx-text-fill:        #7a9cc4;
+    -fx-font-weight:      bold;
+    -fx-min-width: 34; -fx-min-height: 34;
+    -fx-cursor:    hand;
+    -fx-border-color:     #1b2f5e;
+    -fx-border-width:     1;
+    -fx-background-radius: 6;
+    -fx-border-radius:    6;
+}
+.page-btn:hover { -fx-background-color: #1b2f5e; -fx-text-fill: #ffffff; }
+.page-active    {
+    -fx-background-color: #f0a500 !important;
+    -fx-text-fill:        #0c1535 !important;
+    -fx-border-color:     #f0a500 !important;
+}
+
+/* Section labels shared */
+.section-header { -fx-padding: 0 0 4 0; }
+
+/* Detail labels */
+.detail-product-name { -fx-text-fill: #ffffff;  -fx-font-size: 15px; -fx-font-weight: bold; }
+.detail-desc         { -fx-text-fill: #7a9cc4;  -fx-font-size: 12px; }
+.detail-label        { -fx-text-fill: #7a9cc4; }
+.detail-value        { -fx-text-fill: #c8daf0;  -fx-font-weight: bold; }
+.detail-value-price  { -fx-text-fill: #f0a500;  -fx-font-size: 15px; -fx-font-weight: bold; }
+.detail-value-leader { -fx-text-fill: #22c55e;  -fx-font-weight: bold; }
+.detail-value-time   { -fx-text-fill: #ef4444;  -fx-font-weight: bold; -fx-font-family: "Courier New"; }
+
+.detail-grid {
+    -fx-background-color:  #11224a;
+    -fx-background-radius: 8;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     8;
+    -fx-border-width:      1;
+    -fx-padding:           14 16;
+}
+
+.product-image-container {
+    -fx-background-color:  #11224a;
+    -fx-background-radius: 10;
+    -fx-border-color:      #1b2f5e;
+    -fx-border-radius:     10;
+    -fx-border-width:      1;
+    -fx-padding:           12;
+}
+
+/* Bid button */
+.bid-now-button {
+    -fx-background-color: #f0a500;
+    -fx-text-fill:        #0c1535;
+    -fx-font-size:        15px;
+    -fx-font-weight:      bold;
+    -fx-padding:          14 0;
+    -fx-cursor:           hand;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(240,165,0,0.35), 14, 0, 0, 3);
+}
+.bid-now-button:hover   { -fx-background-color: #ffc107; -fx-effect: dropshadow(gaussian, rgba(255,193,7,0.55), 18, 0, 0, 5); }
+.bid-now-button:pressed { -fx-background-color: #d48b00; }
+
+/* Tab active shared */
+.tab-active-style {
+    -fx-background-color: #f0a500;
+    -fx-text-fill:        #0c1535;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   bidding_style.css  –  Nhóm 3 | Hệ Thống Đấu Giá
+   ============================================================ */
+
+/* ─── Reset / Root ──────────────────────────────────────────── */
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.root-pane {
+    -fx-background-color: /*#071525;*/#0c1535;
+}
+/* ─── Top Wrapper ────────────────────────────────────────────── */
+.top-wrapper {
+    -fx-background-color: #0C1E35;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 10, 0, 0, 3);
+}
+
+/* ─── Header Bar ─────────────────────────────────────────────── */
+.header-bar {
+    -fx-background-color: #0A1929;
+    -fx-border-color: #1E3A5F;
+    -fx-border-width: 0 0 1 0;
+    -fx-min-height: 56px;
+    -fx-pref-height: 56px;
+}
+
+/* User chip (top-right) */
+.user-chip {
+    -fx-background-color: #132840;
+    -fx-background-radius: 20;
+    -fx-border-color: #2A4A6E;
+    -fx-border-radius: 20;
+    -fx-border-width: 1;
+    -fx-padding: 5 14 5 10;
+    -fx-cursor: hand;
+}
+.user-chip:hover {
+    -fx-background-color: #1A3550;
+}
+
+/* [FIX] Xin chào User – trắng nổi bật */
+.user-avatar-icon {
+    -fx-font-size: 16px;
+    -fx-text-fill: #FFFFFF;
+}
+.user-name-label {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+.user-chevron {
+    -fx-text-fill: #A0C4E8;
+    -fx-font-size: 11px;
+}
+
+/* ─── Tab Bar ────────────────────────────────────────────────── */
+.tab-bar {
+    -fx-background-color: #0C1E35;
+    -fx-min-height: 46px;
+    -fx-pref-height: 46px;
+    -fx-border-color: #1E3A5F;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* [FIX] Inactive tab – nền XANH, hover/pressed VÀNG */
+.tab-btn {
+    -fx-background-color: #1A3A6E;
+    -fx-background-radius: 4 4 0 0;
+    -fx-border-color: #2A5090;
+    -fx-border-radius: 4 4 0 0;
+    -fx-border-width: 1 1 0 1;
+    -fx-text-fill: #CCDFF5;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 9 20 9 20;
+    -fx-cursor: hand;
+}
+.tab-btn:hover {
+    -fx-background-color: #F5C518;
+    -fx-border-color: #F5C518;
+    -fx-text-fill: #0A1929;
+}
+.tab-btn:pressed {
+    -fx-background-color: #D4A800;
+    -fx-border-color: #D4A800;
+    -fx-text-fill: #0A1929;
+}
+
+/* Active tab button – vẫn VÀNG */
+.tab-btn-active {
+    -fx-background-color: #F5C518;
+    -fx-background-radius: 4 4 0 0;
+    -fx-border-color: #F5C518;
+    -fx-border-radius: 4 4 0 0;
+    -fx-border-width: 1 1 0 1;
+    -fx-text-fill: #0A1929;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 9 20 9 20;
+    -fx-cursor: hand;
+}
+.tab-btn-active:hover {
+    -fx-background-color: #E0B400;
+    -fx-border-color: #E0B400;
+}
+
+/* ─── Content Area ───────────────────────────────────────────── */
+.content-area {
+    -fx-background-color: #071525;
+}
+
+/* ─── Back Button ─────────────────────────────────────────────── */
+.btn-back {
+    -fx-background-color: #132840;
+    -fx-background-radius: 6;
+    -fx-border-color: #2A5080;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-text-fill: #CCDFF5;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 7 18 7 14;
+    -fx-cursor: hand;
+}
+.btn-back:hover {
+    -fx-background-color: #F5C518;
+    -fx-border-color: #F5C518;
+    -fx-text-fill: #0A1929;
+}
+.btn-back:pressed {
+    -fx-background-color: #D4A800;
+}
+
+/* ─── Search Bar ─────────────────────────────────────────────── */
+/* [FIX] Màu nhạt hơn nền để phân biệt rõ */
+.search-bar {
+    -fx-background-color: #1A3555;
+    -fx-background-radius: 8;
+    -fx-border-color: #2E5282;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-pref-height: 42px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 4, 0, 0, 1);
+}
+.search-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-text-fill: #FFFFFF;
+    -fx-prompt-text-fill: #7A9CC0;
+    -fx-font-size: 13px;
+    -fx-padding: 8 12 8 16;
+    -fx-pref-height: 42px;
+}
+.search-field:focused {
+    -fx-background-color: transparent;
+}
+.search-btn {
+    -fx-background-color: #2A5080;
+    -fx-background-radius: 0 8 8 0;
+    -fx-border-color: transparent;
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 14px;
+    -fx-padding: 8 18 8 16;
+    -fx-pref-height: 42px;
+    -fx-cursor: hand;
+}
+.search-btn:hover {
+    -fx-background-color: #F5C518;
+    -fx-text-fill: #0A1929;
+}
+
+/* ─── Product Table ──────────────────────────────────────────── */
+.product-table {
+    -fx-background-color: #0C1829;
+    -fx-border-color: #1E3A5F;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-control-inner-background:     #0F2137;
+    -fx-control-inner-background-alt: #0C1A2E;
+    -fx-table-cell-border-color: transparent;
+}
+
+.product-table .virtual-flow,
+.product-table .virtual-flow .clipped-container .sheet {
+    -fx-background-color: transparent;
+}
+
+.product-table .column-header-background {
+    -fx-background-color: #1E4268;
+    -fx-border-color: #1E3A5F;
+    -fx-border-width: 0 0 1 0;
+    -fx-pref-height: 50px;  /* ← tăng số này lên */
+}
+.product-table .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 44px;
+    -fx-border-color: transparent;
+}
+.product-table .column-header .label {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER;
+    -fx-padding: 0 8 0 8;
+}
+.product-table .filler { -fx-background-color: #0A1628; }
+
+.product-table .table-row-cell {
+    -fx-pref-height: 52px;
+    -fx-background-color: #0F2137;
+    -fx-border-color: #1A2F4A;
+    -fx-border-width: 0 0 1 0;
+    -fx-table-cell-border-color: transparent;
+}
+.product-table .table-row-cell:filled         { -fx-background-color: #0F2137; }
+.product-table .table-row-cell:filled:odd     { -fx-background-color: #0C1A2E; }
+.product-table .table-row-cell:filled:hover   { -fx-background-color: #1E4268; -fx-cursor: hand; }
+.product-table .table-row-cell:filled:selected       { -fx-background-color: #1A3A5C; }
+.product-table .table-row-cell:filled:selected:hover { -fx-background-color: #224A72; }
+.product-table .table-row-cell:empty {
+    -fx-background-color: #0C1829;
+    -fx-border-color: #1A2F4A;
+    -fx-border-width: 0 0 1 0;
+}
+
+.product-table .table-cell {
+    -fx-text-fill: #E0EEFF;
+    -fx-font-size: 13px;
+    -fx-padding: 0 8 0 8;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.table-placeholder { -fx-text-fill: #3A5A7A; -fx-font-size: 14px; }
+/* Empty placeholder */
+.table-placeholder {
+    -fx-text-fill: #4A6A8A;
+    -fx-font-size: 14px;
+}
+
+/* Scrollbar */
+.product-table .scroll-bar:vertical {
+    -fx-background-color: #0C1E35;
+    -fx-border-color: #1E3A5F;
+    -fx-border-width: 0 0 0 1;
+    -fx-pref-width: 10px;
+}
+.product-table .scroll-bar:vertical .thumb {
+    -fx-background-color: #2A5080;
+    -fx-background-radius: 5;
+}
+.product-table .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #3A70B0;
+}
+.product-table .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+}
+.product-table .scroll-bar .increment-button,
+.product-table .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+}
+.product-table .scroll-bar .increment-arrow,
+.product-table .scroll-bar .decrement-arrow {
+    -fx-shape: "";
+    -fx-pref-height: 0;
+}
+
+/* ─── Pagination Bar ──────────────────────────────────────────── */
+.pagination-bar {
+    -fx-padding: 8 0 4 0;
+}
+.page-nav-btn {
+    -fx-background-color: #0C1E35;
+    -fx-background-radius: 6;
+    -fx-border-color: #2A4A6E;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-text-fill: #CCDFF5;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-cursor: hand;
+}
+.page-nav-btn:hover {
+    -fx-background-color: #F5C518;
+    -fx-border-color: #F5C518;
+    -fx-text-fill: #0A1929;
+}
+.page-nav-btn:pressed {
+    -fx-background-color: #D4A800;
+}
+.page-num-btn {
+    -fx-background-color: #0C1E35;
+    -fx-background-radius: 6;
+    -fx-border-color: #2A4A6E;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-text-fill: #CCDFF5;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-cursor: hand;
+}
+.page-num-btn:hover {
+    -fx-background-color: #F5C518;
+    -fx-border-color: #F5C518;
+    -fx-text-fill: #0A1929;
+}
+.page-num-btn-active {
+    -fx-background-color: #F5C518;
+    -fx-background-radius: 6;
+    -fx-border-color: #F5C518;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-text-fill: #0A1929;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(245,197,24,0.4), 6, 0, 0, 0);
+}
+.page-num-btn-active:hover {
+    -fx-background-color: #E0B400;
+    -fx-border-color: #E0B400;
+}
