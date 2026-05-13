@@ -8,6 +8,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -20,233 +21,260 @@ import java.util.Map;
 
 public class ProfileForm {
 
+    private static final String BG     = "#0a0e27";
+    private static final String BG_IN  = "#1a1f45";
+    private static final String BORDER = "#2d3270";
+    private static final String TEXT   = "#f0f4ff";
+    private static final String MUTED  = "#8899bb";
+    private static final String LABEL  = "#c4cfe8";
+    private static final String BLUE = "#2563eb";
+    private static final String GREEN  = "#10b981";
+    private static final String GOLD   = "#f59e0b";
+
     private AuctionClient client;
     private User currentUser;
     private Stage stage;
+
+    // Edit refs
+    private Label lblName, lblEmail, lblPhone, lblAddress, lblBirth;
+    private TextField tfName, tfEmail, tfPhone, tfAddress;
+    private Button btnEdit;
+    private HBox editActions;
+    private Label lblMsg;
 
     public void show(AuctionClient client, User user) {
         this.client = client;
         this.currentUser = user;
         this.stage = new Stage();
-        stage.setTitle("👤 Quản lý tài khoản - " + user.getUsername());
+        stage.setTitle("Quản lý tài khoản – " + user.getUsername());
 
-        TabPane tabPane = new TabPane();
-        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle(
-                "-fx-background-color: white; " +
-                        "-fx-background-radius: 30; " +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 20, 0, 0, 10);"
-        );
+        HBox root = new HBox(0);
+        root.setPrefSize(980, 600);
+        root.setStyle("-fx-background-color:" + BG + ";");
 
-        Tab infoTab = new Tab("📋 Thông tin cá nhân");
-        infoTab.setContent(createInfoPanel());
+        // ── SIDEBAR ───────────────────────────────────────────────
+        String[][] menu = {{"👤","Thông tin cá nhân"},{"🔒","Đổi mật khẩu"},{"🚪","Đăng xuất"}};
+        VBox sidebar = SidebarHelper.build(currentUser, menu, 0, idx -> {
+            if (idx == 1) showChangePassDialog();
+            else if (idx == 2) {
+                try { client.disconnect(); } catch (Exception ignored) {}
+                stage.close();
+                new LoginApp().start(new Stage());
+            }
+        });
 
-        Tab passwordTab = new Tab("🔐 Đổi mật khẩu");
-        passwordTab.setContent(createPasswordPanel());
+        // ── CONTENT ───────────────────────────────────────────────
+        VBox content = buildContent();
+        HBox.setHgrow(content, Priority.ALWAYS);
 
-        Tab balanceTab = new Tab("💰 Số dư");
-        balanceTab.setContent(createBalancePanel());
+        root.getChildren().addAll(sidebar, content);
 
-        tabPane.getTabs().addAll(infoTab, passwordTab, balanceTab);
-
-        StackPane root = new StackPane(tabPane);
-        root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #E8ECEF;");
-
-        Scene scene = new Scene(root, 550, 500);
-        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        Scene scene = new Scene(root, 980, 600);
         stage.setScene(scene);
+        stage.setResizable(false);
         stage.show();
     }
 
-    private void styleTextField(TextField tf) {
-        tf.setPrefHeight(45);
-        tf.setBackground(new Background(new BackgroundFill(Color.WHITE, new CornerRadii(20), Insets.EMPTY)));
-        tf.setBorder(new Border(new BorderStroke(
-                Color.web("#D1D5DB"), BorderStrokeStyle.SOLID, new CornerRadii(20), new BorderWidths(1.5)
-        )));
-        tf.setPadding(new Insets(0, 20, 0, 20));
-    }
+    private VBox buildContent() {
+        VBox panel = new VBox(0);
+        panel.setStyle("-fx-background-color:" + BG + ";");
+        panel.setPadding(new Insets(26, 30, 26, 30));
 
-    private void styleTextFieldDisabled(TextField tf) {
-        styleTextField(tf);
-        tf.setStyle("-fx-background-color: #f0f0f0;");
-    }
+        // Header
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        VBox.setMargin(header, new Insets(0, 0, 20, 0));
 
-    private void styleButton(Button btn, String colorHex) {
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setPrefHeight(45);
-        btn.setTextFill(Color.WHITE);
-        btn.setFont(Font.font("System", FontWeight.BOLD, 14));
-        btn.setBackground(new Background(new BackgroundFill(Color.web(colorHex), new CornerRadii(25), Insets.EMPTY)));
-        btn.setCursor(Cursor.HAND);
-    }
+        Label t = new Label("Thông tin cá nhân");
+        t.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        t.setTextFill(Color.web(TEXT));
+        Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
 
-    private VBox createInfoPanel() {
-        VBox panel = new VBox(15);
-        panel.setPadding(new Insets(30));
-        panel.setAlignment(Pos.CENTER_LEFT);
+        btnEdit = new Button("✏  Chỉnh sửa");
+        btnEdit.setPrefHeight(36);
+        btnEdit.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        btnEdit.setStyle("-fx-background-color:" + BLUE + ";-fx-text-fill:white;"
+                + "-fx-background-radius:8;-fx-cursor:hand;-fx-padding:0 16;");
+        btnEdit.setOnAction(e -> toggleEdit());
+        header.getChildren().addAll(t, sp, btnEdit);
 
-        Label lblTitle = new Label("THÔNG TIN CÁ NHÂN");
-        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
-        lblTitle.setTextFill(Color.web("#24416B"));
+        // Section: Thông tin cơ bản
+        Label secTitle = new Label("Thông tin cơ bản");
+        secTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        secTitle.setTextFill(Color.web(LABEL));
+        VBox.setMargin(secTitle, new Insets(0, 0, 12, 0));
 
-        Label lblUsername = new Label("Tên đăng nhập:");
-        lblUsername.setTextFill(Color.web("#24416B"));
-        TextField txtUsername = new TextField(currentUser.getUsername());
-        txtUsername.setEditable(false);
-        styleTextFieldDisabled(txtUsername);
+        // Grid info
+        VBox infoBox = new VBox(0);
+        infoBox.setStyle("-fx-background-color:#11153a;-fx-background-radius:12;"
+                + "-fx-border-color:" + BORDER + ";-fx-border-radius:12;");
 
-        Label lblEmail = new Label("Email:");
-        lblEmail.setTextFill(Color.web("#24416B"));
-        TextField txtEmail = new TextField(currentUser.getEmail() != null ? currentUser.getEmail() : "");
-        styleTextField(txtEmail);
+        String un = currentUser.getUsername();
+        String em = currentUser.getEmail() != null ? currentUser.getEmail() : "";
 
-        Button btnUpdate = new Button("💾 Cập nhật Email");
-        styleButton(btnUpdate, "#24416B");
+        lblName    = val(un);    tfName    = editField(un);
+        lblEmail   = val(em);    tfEmail   = editField(em);
+        lblPhone   = val("0123 456 789"); tfPhone = editField("0123456789");
+        lblAddress = val("123 Đường ABC, Quận 1, TP. Hồ Chí Minh"); tfAddress = editField("123 Đường ABC...");
+        lblBirth   = val("01/01/1995");
 
-        Label lblMessage = new Label();
-        lblMessage.setTextFill(Color.web("#E53935"));
-
-        btnUpdate.setOnAction(e -> {
-            String email = txtEmail.getText().trim();
-            if (email.isEmpty()) {
-                lblMessage.setText("Email không được để trống!");
-                return;
-            }
-
-            User updated = new User();
-            updated.setId(currentUser.getId());
-            updated.setUsername(currentUser.getUsername());
-            updated.setEmail(email);
-            updated.setRole(currentUser.getRole());
-
-            new Thread(() -> {
-                try {
-                    ResponseMessage resp = client.sendRequest(CommandType.UPDATE_USER_INFO, updated);
-                    Platform.runLater(() -> {
-                        if (resp.getCode() == ResponseCode.SUCCESS) {
-                            DialogUtils.showInfo("Thành công", "Cập nhật email thành công!");
-                            currentUser.setEmail(email);
-                            lblMessage.setText("");
-                        } else {
-                            lblMessage.setText("Lỗi: " + resp.getMessage());
-                        }
-                    });
-                } catch (Exception ex) {
-                    Platform.runLater(() -> lblMessage.setText("Lỗi kết nối: " + ex.getMessage()));
-                }
-            }).start();
-        });
-
-        panel.getChildren().addAll(
-                lblTitle, new Separator(),
-                lblUsername, txtUsername,
-                lblEmail, txtEmail,
-                btnUpdate, lblMessage
+        infoBox.getChildren().addAll(
+                infoRow("Họ và tên",     lblName,    tfName),
+                infoRow("Tên đăng nhập", val(un),    null),
+                infoRow("Email",         lblEmail,   tfEmail),
+                infoRow("Số điện thoại", lblPhone,   tfPhone),
+                infoRow("Địa chỉ",       lblAddress, tfAddress),
+                infoRow("Ngày sinh",     lblBirth,   null)
         );
+        VBox.setMargin(infoBox, new Insets(0, 0, 20, 0));
+
+        // Edit actions
+        editActions = new HBox(10);
+        editActions.setVisible(false); editActions.setManaged(false);
+        Button btnSave = new Button("Lưu thay đổi");
+        btnSave.setPrefHeight(36);
+        btnSave.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        btnSave.setStyle("-fx-background-color:" + GREEN + ";-fx-text-fill:white;-fx-background-radius:8;-fx-cursor:hand;-fx-padding:0 16;");
+        btnSave.setOnAction(e -> saveChanges());
+        Button btnCancel = new Button("Hủy");
+        btnCancel.setPrefHeight(36);
+        btnCancel.setFont(Font.font("Segoe UI", 12));
+        btnCancel.setStyle("-fx-background-color:" + BG_IN + ";-fx-border-color:" + BORDER + ";-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:" + MUTED + ";-fx-cursor:hand;-fx-padding:0 16;");
+        btnCancel.setOnAction(e -> cancelEdit());
+        editActions.getChildren().addAll(btnSave, btnCancel);
+        VBox.setMargin(editActions, new Insets(0, 0, 8, 0));
+
+        lblMsg = new Label(); lblMsg.setFont(Font.font("Segoe UI", 12)); lblMsg.setWrapText(true);
+        VBox.setMargin(lblMsg, new Insets(0, 0, 16, 0));
+
+        // Section: Thống kê tài khoản
+        Label secStat = new Label("Thống kê tài khoản");
+        secStat.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        secStat.setTextFill(Color.web(LABEL));
+        VBox.setMargin(secStat, new Insets(0, 0, 12, 0));
+
+        GridPane statsGrid = new GridPane();
+        statsGrid.setHgap(14); statsGrid.setVgap(14);
+        ColumnConstraints cc = new ColumnConstraints(); cc.setPercentWidth(50);
+        statsGrid.getColumnConstraints().addAll(cc, new ColumnConstraints(){{ setPercentWidth(50); }});
+
+        double bal = currentUser.getBalance();
+        statsGrid.add(statCard("💰", "Tổng số dư",           String.format("%,.0f đ", bal), "#2563eb"), 0, 0);
+        statsGrid.add(statCard("🏠", "Tổng đã chi tiêu",     "125.750.000 đ",               "#2563eb"), 1, 0);
+        statsGrid.add(statCard("📦", "Số sản phẩm đã đấu",   "128",                          "#10b981"), 0, 1);
+        statsGrid.add(statCard("🏆", "Số sản phẩm đã thắng", "23",                           "#f59e0b"), 1, 1);
+
+        panel.getChildren().addAll(header, secTitle, infoBox, editActions, lblMsg, secStat, statsGrid);
         return panel;
     }
 
-    private VBox createPasswordPanel() {
-        VBox panel = new VBox(15);
-        panel.setPadding(new Insets(30));
-        panel.setAlignment(Pos.CENTER_LEFT);
+    private HBox infoRow(String key, Label valLbl, TextField tf) {
+        Label k = new Label(key); k.setFont(Font.font("Segoe UI", 12)); k.setTextFill(Color.web(MUTED));
+        k.setPrefWidth(130); k.setMinWidth(130);
+        HBox row = new HBox(16, k, valLbl);
+        if (tf != null) row.getChildren().add(tf);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(12, 20, 12, 20));
+        row.setStyle("-fx-border-color:transparent transparent " + BORDER + " transparent;-fx-border-width:0 0 1 0;");
+        HBox.setHgrow(valLbl, Priority.ALWAYS);
+        if (tf != null) HBox.setHgrow(tf, Priority.ALWAYS);
+        return row;
+    }
 
-        Label lblTitle = new Label("ĐỔI MẬT KHẨU");
-        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
-        lblTitle.setTextFill(Color.web("#24416B"));
+    private Label val(String s) {
+        Label l = new Label(s); l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13)); l.setTextFill(Color.web(TEXT)); l.setWrapText(true); return l;
+    }
 
-        PasswordField txtOld = new PasswordField();
-        txtOld.setPromptText("Mật khẩu cũ");
-        PasswordField txtNew = new PasswordField();
-        txtNew.setPromptText("Mật khẩu mới (≥6 ký tự)");
-        PasswordField txtConfirm = new PasswordField();
-        txtConfirm.setPromptText("Xác nhận mật khẩu mới");
+    private TextField editField(String s) {
+        TextField tf = new TextField(s); tf.setPrefHeight(34); tf.setMaxWidth(Double.MAX_VALUE);
+        tf.setVisible(false); tf.setManaged(false);
+        tf.setStyle("-fx-background-color:" + BG_IN + ";-fx-border-color:#2563eb;-fx-border-radius:6;-fx-background-radius:6;-fx-text-fill:" + TEXT + ";-fx-font-size:13;-fx-padding:0 10;");
+        return tf;
+    }
 
-        styleTextField(txtOld);
-        styleTextField(txtNew);
-        styleTextField(txtConfirm);
+    private HBox statCard(String icon, String label, String value, String color) {
+        HBox card = new HBox(14); card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(16));
+        card.setStyle("-fx-background-color:#11153a;-fx-background-radius:10;-fx-border-color:" + BORDER + ";-fx-border-radius:10;");
+        StackPane ic = new StackPane(); ic.setPrefSize(44, 44); ic.setMinSize(44, 44);
+        ic.setStyle("-fx-background-color:" + color + "22;-fx-background-radius:8;");
+        Label emo = new Label(icon); emo.setFont(Font.font(20)); ic.getChildren().add(emo);
+        VBox info = new VBox(3);
+        Label lbl = new Label(label); lbl.setFont(Font.font("Segoe UI", 11)); lbl.setTextFill(Color.web(MUTED));
+        Label val = new Label(value); val.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15)); val.setTextFill(Color.web(TEXT));
+        info.getChildren().addAll(lbl, val); HBox.setHgrow(info, Priority.ALWAYS);
+        card.getChildren().addAll(ic, info); return card;
+    }
 
-        Button btnChange = new Button("🔄 Đổi mật khẩu");
-        styleButton(btnChange, "#24416B");
+    private boolean editing = false;
+    private void toggleEdit() {
+        editing = !editing;
+        lblName.setVisible(!editing);    lblName.setManaged(!editing);    tfName.setVisible(editing);    tfName.setManaged(editing);
+        lblEmail.setVisible(!editing);   lblEmail.setManaged(!editing);   tfEmail.setVisible(editing);   tfEmail.setManaged(editing);
+        lblPhone.setVisible(!editing);   lblPhone.setManaged(!editing);   tfPhone.setVisible(editing);   tfPhone.setManaged(editing);
+        lblAddress.setVisible(!editing); lblAddress.setManaged(!editing); tfAddress.setVisible(editing); tfAddress.setManaged(editing);
+        editActions.setVisible(editing); editActions.setManaged(editing);
+        btnEdit.setText(editing ? "Đang chỉnh sửa..." : "✏  Chỉnh sửa");
+        lblMsg.setText("");
+    }
 
-        Label lblMsg = new Label();
-        lblMsg.setTextFill(Color.web("#E53935"));
+    private void saveChanges() {
+        String email = tfEmail.getText().trim();
+        if (email.isEmpty()) { lblMsg.setTextFill(Color.web("#ef4444")); lblMsg.setText("Email không được để trống!"); return; }
+        User updated = new User(); updated.setId(currentUser.getId()); updated.setUsername(currentUser.getUsername());
+        updated.setEmail(email); updated.setRole(currentUser.getRole());
+        new Thread(() -> {
+            try {
+                ResponseMessage resp = client.sendRequest(CommandType.UPDATE_USER_INFO, updated);
+                Platform.runLater(() -> {
+                    if (resp.getCode() == ResponseCode.SUCCESS) {
+                        lblName.setText(tfName.getText()); lblEmail.setText(email);
+                        lblPhone.setText(tfPhone.getText()); lblAddress.setText(tfAddress.getText());
+                        currentUser.setEmail(email); editing = true; toggleEdit();
+                        lblMsg.setTextFill(Color.web(GREEN)); lblMsg.setText("✓ Cập nhật thành công!");
+                    } else { lblMsg.setTextFill(Color.web("#ef4444")); lblMsg.setText("Lỗi: " + resp.getMessage()); }
+                });
+            } catch (Exception e) { Platform.runLater(() -> { lblMsg.setTextFill(Color.web("#ef4444")); lblMsg.setText("Lỗi kết nối!"); }); }
+        }).start();
+    }
 
-        btnChange.setOnAction(e -> {
-            String oldPass = txtOld.getText();
-            String newPass = txtNew.getText();
-            String confirm = txtConfirm.getText();
+    private void cancelEdit() { editing = true; toggleEdit(); }
 
-            if (oldPass.isEmpty() || newPass.isEmpty()) {
-                lblMsg.setText("Vui lòng nhập đầy đủ!");
-                return;
-            }
-            if (!newPass.equals(confirm)) {
-                lblMsg.setText("Mật khẩu mới không khớp!");
-                return;
-            }
-            if (newPass.length() < 6) {
-                lblMsg.setText("Mật khẩu mới phải có ít nhất 6 ký tự!");
-                return;
-            }
+    private void showChangePassDialog() {
+        Stage d = new Stage();
+        d.setTitle("Đổi mật khẩu");
+        VBox root = new VBox(14);
+        root.setStyle("-fx-background-color:#11153a;");
+        root.setPadding(new Insets(28, 32, 28, 32));
+        root.setPrefWidth(380);
 
-            Map<String, String> data = new HashMap<>();
-            data.put("oldPassword", oldPass);
-            data.put("newPassword", newPass);
-
+        Label t = new Label("Đổi mật khẩu"); t.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18)); t.setTextFill(Color.web(TEXT));
+        PasswordField pOld = pf("Mật khẩu cũ"); PasswordField pNew = pf("Mật khẩu mới (≥6 ký tự)"); PasswordField pCon = pf("Nhập lại mật khẩu mới");
+        Label lblErr = new Label(); lblErr.setFont(Font.font("Segoe UI", 12)); lblErr.setTextFill(Color.web("#ef4444")); lblErr.setWrapText(true);
+        Button btnOk = new Button("Đổi mật khẩu"); btnOk.setMaxWidth(Double.MAX_VALUE); btnOk.setPrefHeight(44);
+        btnOk.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        btnOk.setStyle("-fx-background-color:" + BLUE + ";-fx-text-fill:white;-fx-background-radius:8;-fx-cursor:hand;");
+        root.getChildren().addAll(t,
+                lbl("Mật khẩu cũ"), pOld, lbl("Mật khẩu mới"), pNew, lbl("Xác nhận"), pCon,
+                lblErr, btnOk);
+        btnOk.setOnAction(e -> {
+            if (pOld.getText().isEmpty()||pNew.getText().isEmpty()) { lblErr.setText("Nhập đầy đủ!"); return; }
+            if (!pNew.getText().equals(pCon.getText())) { lblErr.setText("Mật khẩu không khớp!"); return; }
+            if (pNew.getText().length() < 6) { lblErr.setText("Mật khẩu phải ≥6 ký tự!"); return; }
+            Map<String,String> data = new HashMap<>(); data.put("oldPassword",pOld.getText()); data.put("newPassword",pNew.getText());
             new Thread(() -> {
                 try {
                     ResponseMessage resp = client.sendRequest(CommandType.CHANGE_PASSWORD, data);
                     Platform.runLater(() -> {
-                        if (resp.getCode() == ResponseCode.SUCCESS) {
-                            DialogUtils.showInfo("Thành công", "Đổi mật khẩu thành công!");
-                            txtOld.clear();
-                            txtNew.clear();
-                            txtConfirm.clear();
-                            lblMsg.setText("");
-                        } else {
-                            lblMsg.setText("Lỗi: " + resp.getMessage());
-                        }
+                        if (resp.getCode() == ResponseCode.SUCCESS) { DialogUtils.showInfo("Thành công","Đổi mật khẩu thành công!"); d.close(); }
+                        else lblErr.setText("Lỗi: " + resp.getMessage());
                     });
-                } catch (Exception ex) {
-                    Platform.runLater(() -> lblMsg.setText("Lỗi kết nối: " + ex.getMessage()));
-                }
+                } catch (Exception ex) { Platform.runLater(() -> lblErr.setText("Lỗi kết nối!")); }
             }).start();
         });
-
-        panel.getChildren().addAll(
-                lblTitle, new Separator(),
-                new Label("Mật khẩu cũ:"), txtOld,
-                new Label("Mật khẩu mới:"), txtNew,
-                new Label("Xác nhận:"), txtConfirm,
-                btnChange, lblMsg
-        );
-        return panel;
+        d.setScene(new Scene(root)); d.show();
     }
 
-    private VBox createBalancePanel() {
-        VBox panel = new VBox(20);
-        panel.setPadding(new Insets(30));
-        panel.setAlignment(Pos.CENTER);
-
-        Label lblTitle = new Label("💰 SỐ DƯ HIỆN TẠI");
-        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
-        lblTitle.setTextFill(Color.web("#24416B"));
-
-        Label lblBalance = new Label(String.format("%,.0f VNĐ", currentUser.getBalance()));
-        lblBalance.setFont(Font.font("System", FontWeight.BOLD, 36));
-        lblBalance.setTextFill(Color.web("#27ae60"));
-
-        Button btnRefresh = new Button("🔄 Làm mới số dư");
-        styleButton(btnRefresh, "#24416B");
-
-        btnRefresh.setOnAction(e -> {
-            DialogUtils.showInfo("Số dư", "Hiện tại: " + String.format("%,.0f VNĐ", currentUser.getBalance()));
-        });
-
-        panel.getChildren().addAll(lblTitle, lblBalance, btnRefresh);
-        return panel;
-    }
+    private PasswordField pf(String p) { PasswordField pf = new PasswordField(); pf.setPromptText(p); pf.setPrefHeight(42); pf.setStyle("-fx-background-color:#1a1f45;-fx-border-color:#2d3270;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#f0f4ff;-fx-prompt-text-fill:#4a5a7a;-fx-font-size:13;-fx-padding:0 12;"); return pf; }
+    private Label lbl(String s) { Label l = new Label(s); l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11)); l.setTextFill(Color.web(LABEL)); return l; }
 }
