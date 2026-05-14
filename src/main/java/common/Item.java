@@ -36,19 +36,6 @@ public class Item extends Entity  {
         this.endTime = startTime.plusSeconds(durationSeconds);
     }
 
-    // ✅ CONSTRUCTOR MỚI - dùng cho MainApp
-    public Item(String name, String description, double startingPrice, LocalDateTime startTime, LocalDateTime endTime) {
-        this.setId(java.util.UUID.randomUUID().toString());
-        this.name = name;
-        this.description = description;
-        this.startingPrice = startingPrice;
-        this.currentPrice = startingPrice;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.status = "ACTIVE";
-        this.bidCount = 0;
-    }
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -102,3 +89,4 @@ public class Item extends Entity  {
         return "Item{" + name + ", price=" + currentPrice + ", status=" + status + '}';
     }
 }
+

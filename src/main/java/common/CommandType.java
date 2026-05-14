@@ -20,10 +20,6 @@ public enum CommandType implements Serializable {
     PLACE_BID,
     GET_BID_HISTORY,
 
-    // REALTIME
-    SUBSCRIBE_ITEM,
-    UNSUBSCRIBE_ITEM,
-
     // AUTO BID
     SET_AUTO_BID,
     CANCEL_AUTO_BID,
@@ -38,3 +34,4 @@ public enum CommandType implements Serializable {
     KEEP_ALIVE,
     DISCONNECT
 }
+
