@@ -25,6 +25,13 @@ public enum CommandType implements Serializable {
     CANCEL_AUTO_BID,
     GET_AUTO_BID_STATUS,
 
+    // USER PROFILE (QUAN TRỌNG CHO NHÓM 2 & 4)
+    GET_MY_BID_HISTORY,
+    GET_WON_PRODUCTS,
+    GET_PRICE_HISTORY,
+    CHANGE_PASSWORD,
+    UPDATE_USER_INFO,
+
     // ADMIN
     GET_ALL_USERS,
     GET_ALL_BIDS,

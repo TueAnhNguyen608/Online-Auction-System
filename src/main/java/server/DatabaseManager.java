@@ -21,18 +21,12 @@ public class DatabaseManager {
     // ========== SINGLETON PATTERN ==========
     private static volatile DatabaseManager instance;
 
-    // Constructor private cho Singleton
     private DatabaseManager() throws SQLException {
         this.conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
         createTablesIfNotExist();
         System.out.println("✅ Kết nối database thành công!");
     }
 
-    /**
-     * Lấy instance duy nhất của DatabaseManager (Singleton Pattern)
-     * @return instance của DatabaseManager
-     * @throws SQLException nếu kết nối database thất bại
-     */
     public static DatabaseManager getInstance() throws SQLException {
         if (instance == null) {
             synchronized (DatabaseManager.class) {
@@ -44,10 +38,6 @@ public class DatabaseManager {
         return instance;
     }
 
-    /**
-     * Constructor cũ - giữ để tương thích ngược với code đang dùng new DatabaseManager()
-     * @deprecated Dùng {@link #getInstance()} thay thế
-     */
     @Deprecated
     public DatabaseManager(boolean forceNew) throws SQLException {
         this.conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -538,5 +528,95 @@ public class DatabaseManager {
             return user;
         }
         return null;
+    }
+
+    // =========================================================================
+    // PHƯƠNG THỨC MỚI CHO NHÓM 2 & 4 (THÊM VÀO CUỐI FILE)
+    // =========================================================================
+
+    public boolean updateUser(User user) throws SQLException {
+        String sql = "UPDATE users SET email = ? WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, user.getEmail());
+            stmt.setString(2, user.getId());
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    public boolean changePassword(String userId, String oldPassword, String newPassword) throws SQLException {
+        String checkSql = "SELECT password FROM users WHERE id = ?";
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+            checkStmt.setString(1, userId);
+            ResultSet rs = checkStmt.executeQuery();
+            if (!rs.next() || !rs.getString("password").equals(oldPassword)) {
+                return false;
+            }
+        }
+        String updateSql = "UPDATE users SET password = ? WHERE id = ?";
+        try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+            updateStmt.setString(1, newPassword);
+            updateStmt.setString(2, userId);
+            return updateStmt.executeUpdate() > 0;
+        }
+    }
+
+    public List<Bid> getMyBidHistory(String userId) throws SQLException {
+        List<Bid> history = new ArrayList<>();
+        String sql = "SELECT b.*, i.current_bidder_id AS winner_id " +
+                "FROM bids b JOIN items i ON b.item_id = i.id " +
+                "WHERE b.bidder_id = ? ORDER BY b.bid_time DESC";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Bid bid = new Bid();
+                bid.setId(rs.getString("id"));
+                bid.setItemId(rs.getString("item_id"));
+                bid.setItemName(rs.getString("item_name"));
+                bid.setBidderId(rs.getString("bidder_id"));
+                bid.setBidderName(rs.getString("bidder_name"));
+                bid.setAmount(rs.getDouble("amount"));
+                if (rs.getTimestamp("bid_time") != null) {
+                    bid.setBidTime(rs.getTimestamp("bid_time").toLocalDateTime());
+                }
+                bid.setAutoBid(rs.getBoolean("is_auto_bid"));
+                bid.setWinning(userId.equals(rs.getString("winner_id")));
+                history.add(bid);
+            }
+        }
+        return history;
+    }
+
+    public List<Item> getWonProducts(String userId) throws SQLException {
+        List<Item> items = new ArrayList<>();
+        String sql = "SELECT * FROM items WHERE status='ENDED' AND current_bidder_id = ? ORDER BY end_time DESC";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                items.add(extractItem(rs));
+            }
+        }
+        return items;
+    }
+
+    public List<PricePoint> getPriceHistory(String itemId) throws SQLException {
+        List<PricePoint> points = new ArrayList<>();
+        String sql = "SELECT amount, bid_time FROM bids WHERE item_id = ? ORDER BY bid_time ASC";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, itemId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                points.add(new PricePoint(rs.getDouble("amount"),
+                        rs.getTimestamp("bid_time").toLocalDateTime()));
+            }
+        }
+        if (points.isEmpty()) {
+            Item item = getItemById(itemId);
+            if (item != null && item.getStartTime() != null) {
+                points.add(new PricePoint(item.getStartingPrice(), item.getStartTime()));
+            }
+        }
+        return points;
     }
 }

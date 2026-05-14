@@ -80,6 +80,25 @@ public class ClientHandler implements Runnable {
                     return handleSetAutoBid(request.getData());
                 case LOGOUT:
                     return ResponseMessage.success("Đăng xuất thành công", null);
+
+                // =========================================================
+                // CODE BỔ SUNG CHO NHÓM 2 (Profile)
+                // =========================================================
+                case CHANGE_PASSWORD:
+                    return handleChangePassword(request.getData());
+                case UPDATE_USER_INFO:
+                    return handleUpdateUserInfo(request.getData());
+
+                // =========================================================
+                // CODE BỔ SUNG CHO NHÓM 4 (Lịch sử & Thống kê)
+                // =========================================================
+                case GET_MY_BID_HISTORY:
+                    return handleGetMyBidHistory();
+                case GET_WON_PRODUCTS:
+                    return handleGetWonProducts();
+                case GET_PRICE_HISTORY:
+                    return handleGetPriceHistory(request.getData());
+
                 default:
                     return ResponseMessage.error("Command chưa được hỗ trợ");
             }
@@ -241,6 +260,58 @@ public class ClientHandler implements Runnable {
         }
         return ResponseMessage.error("Cài đặt auto-bid thất bại");
     }
+
+    // =========================================================================
+    // CÁC HÀM XỬ LÝ MỚI CHO NHÓM 2 & 4 (ĐÃ TRIỂN KHAI)
+    // =========================================================================
+
+    private ResponseMessage handleChangePassword(Object data) throws SQLException {
+        @SuppressWarnings("unchecked")
+        Map<String, String> map = (Map<String, String>) data;
+        String oldPass = map.get("oldPassword");
+        String newPass = map.get("newPassword");
+        if (oldPass == null || newPass == null || newPass.length() < 6) {
+            return ResponseMessage.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+        }
+        boolean ok = dbManager.changePassword(currentUserId, oldPass, newPass);
+        return ok ? ResponseMessage.success("Đổi mật khẩu thành công", null)
+                : ResponseMessage.error("Mật khẩu cũ không đúng");
+    }
+
+    private ResponseMessage handleUpdateUserInfo(Object data) throws SQLException {
+        User user;
+        if (data instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) data;
+            user = new User();
+            user.setId((String) map.get("id"));
+            user.setEmail((String) map.get("email"));
+        } else {
+            user = (User) data;
+        }
+        user.setId(currentUserId); // đảm bảo đúng user đang đăng nhập
+        boolean ok = dbManager.updateUser(user);
+        return ok ? ResponseMessage.success("Cập nhật thông tin thành công", null)
+                : ResponseMessage.error("Không thể cập nhật thông tin");
+    }
+
+    private ResponseMessage handleGetMyBidHistory() throws SQLException {
+        List<Bid> history = dbManager.getMyBidHistory(currentUserId);
+        return ResponseMessage.success("Lấy lịch sử thành công", history);
+    }
+
+    private ResponseMessage handleGetWonProducts() throws SQLException {
+        List<Item> wonItems = dbManager.getWonProducts(currentUserId);
+        return ResponseMessage.success("Lấy sản phẩm đã thắng thành công", wonItems);
+    }
+
+    private ResponseMessage handleGetPriceHistory(Object data) throws SQLException {
+        String itemId = (String) data;
+        List<PricePoint> priceHistory = dbManager.getPriceHistory(itemId);
+        return ResponseMessage.success("Lấy lịch sử giá thành công", priceHistory);
+    }
+
+    // =========================================================================
 
     public void pushRealtimeUpdate(PriceUpdateEvent event) {
         ResponseMessage push = ResponseMessage.success("realtime_update", event);
