@@ -1,4 +1,4 @@
-package view;
+package view.history;
 
 import client.AuctionClient;
 import common.CommandType;
@@ -9,7 +9,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -18,6 +17,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import view.SidebarHelper;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -54,7 +54,7 @@ public class WonProductsUI {
         String[][] menu = {{"📋","Lịch sử đấu giá"},{"🏆","Sản phẩm đã thắng"},{"📈","Biểu đồ giá"}};
         VBox sidebar = SidebarHelper.build(user, menu, 1, idx -> {
             if (idx == 0) { new MyBidsHistoryUI().show(client, user); stage.close(); }
-            else if (idx == 2) { new PriceChartUI().show(client, "", "Chọn sản phẩm"); stage.close(); }
+            else if (idx == 2) { new PriceChartUI().show(client, "", "Chọn sản phẩm", user); stage.close(); }
         });
 
         VBox content = new VBox(0);

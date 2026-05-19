@@ -605,7 +605,9 @@ public class DatabaseManager {
 
     public List<Bid> getMyBidHistory(String userId) throws SQLException {
         List<Bid> history = new ArrayList<>();
-        String sql = "SELECT b.*, i.current_bidder_id AS winner_id " +
+        // Thêm i.current_price và i.status để UI hiển thị "Giá cuối cùng" và trạng thái đúng
+        String sql = "SELECT b.*, i.current_bidder_id AS winner_id, " +
+                "i.current_price AS final_price, i.status AS item_status " +
                 "FROM bids b JOIN items i ON b.item_id = i.id " +
                 "WHERE b.bidder_id = ? ORDER BY b.bid_time DESC";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -623,7 +625,11 @@ public class DatabaseManager {
                     bid.setBidTime(rs.getTimestamp("bid_time").toLocalDateTime());
                 }
                 bid.setAutoBid(rs.getBoolean("is_auto_bid"));
-                bid.setWinning(userId.equals(rs.getString("winner_id")));
+                boolean isWinner = userId.equals(rs.getString("winner_id"));
+                bid.setWinning(isWinner);
+                // Gán giá cuối cùng của item và trạng thái item để UI dùng
+                bid.setFinalPrice(rs.getDouble("final_price"));
+                bid.setItemStatus(rs.getString("item_status"));
                 history.add(bid);
             }
         }

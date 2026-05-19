@@ -1,4 +1,4 @@
-package view;
+package view.history;
 
 import client.AuctionClient;
 import common.CommandType;
@@ -18,6 +18,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import view.SidebarHelper;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -56,8 +57,7 @@ public class MyBidsHistoryUI {
         String[][] menu = {{"📋","Lịch sử đấu giá"},{"🏆","Sản phẩm đã thắng"},{"📈","Biểu đồ giá"}};
         VBox sidebar = SidebarHelper.build(currentUser, menu, 0, idx -> {
             if (idx == 1) { new WonProductsUI().show(client, user); stage.close(); }
-            else if (idx == 2) { new PriceChartUI().show(client, "", "Chọn sản phẩm"); stage.close(); }
-            else if (idx == 2) { stage.close(); }
+            else if (idx == 2) { new PriceChartUI().show(client, "", "Chọn sản phẩm", user); stage.close(); }
         });
 
         // Content
@@ -133,13 +133,35 @@ public class MyBidsHistoryUI {
         tableBox.getChildren().add(buildTableHeader());
         for (int i = 0; i < rows.size(); i++) {
             Map<String, Object> r = rows.get(i);
-            String name  = getStr(r, "itemName", "name");
-            String final_ = fmtP(r, "finalPrice", "currentPrice");
-            String mine  = fmtP(r, "bidAmount",  "amount");
-            String status = toVN(getStr(r, "status", "bidStatus"));
-            String time  = getStr(r, "createdAt", "bidTime");
-            String icon  = pickIcon(name);
+            String name   = getStr(r, "itemName", "name");
+            // finalPrice từ DB (i.current_price), fallback về amount nếu chưa có
+            String final_ = fmtP(r, "finalPrice", "final_price", "currentPrice", "amount");
+            String mine   = fmtP(r, "amount", "bidAmount");
+            // Lấy trạng thái từ winning + itemStatus thay vì status/bidStatus
+            String status = deriveBidStatus(r);
+            String time   = getStr(r, "bidTime", "createdAt");
+            String icon   = pickIcon(name);
             tableBox.getChildren().add(buildRow(new Object[]{icon, name, final_, mine, status, time}, i % 2 == 1));
+        }
+    }
+
+    /**
+     * Phân tích trạng thái bid dựa trên winning + itemStatus:
+     * - ACTIVE + winning=true  → "Đang dẫn đầu"
+     * - ACTIVE + winning=false → "Bị vượt giá"
+     * - ENDED  + winning=true  → "Đã thắng"
+     * - ENDED  + winning=false → "Thua"
+     */
+    private String deriveBidStatus(Map<String, Object> r) {
+        Object winningObj = r.get("winning");
+        boolean winning = winningObj != null &&
+                (Boolean.TRUE.equals(winningObj) || "true".equalsIgnoreCase(winningObj.toString()));
+        String itemStatus = getStr(r, "itemStatus", "item_status");
+        if ("ENDED".equalsIgnoreCase(itemStatus)) {
+            return winning ? "Đã thắng" : "Thua";
+        } else {
+            // ACTIVE hoặc chưa biết
+            return winning ? "Đang dẫn đầu" : "Bị vượt giá";
         }
     }
 
@@ -213,9 +235,10 @@ public class MyBidsHistoryUI {
         String st = (String) d[4];
         Label mPrice = new Label((String) d[3]); mPrice.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); mPrice.setPrefWidth(130);
         switch(st) {
-            case "Đã thắng": mPrice.setTextFill(Color.web("#10b981")); break;
-            case "Thua":     mPrice.setTextFill(Color.web("#ef4444")); break;
-            default:         mPrice.setTextFill(Color.web("#f59e0b")); break;
+            case "Đã thắng":
+            case "Đang dẫn đầu": mPrice.setTextFill(Color.web("#10b981")); break;
+            case "Thua":         mPrice.setTextFill(Color.web("#ef4444")); break;
+            default:             mPrice.setTextFill(Color.web("#f59e0b")); break;
         }
 
         Label badge = badge(st); badge.setPrefWidth(110);
@@ -228,10 +251,11 @@ public class MyBidsHistoryUI {
     private Label badge(String st) {
         Label l = new Label(st); l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11)); l.setPadding(new Insets(3, 10, 3, 10));
         switch(st) {
-            case "Đã thắng":    l.setTextFill(Color.web("#10b981")); l.setStyle("-fx-background-color:rgba(16,185,129,0.15);-fx-background-radius:20;"); break;
-            case "Thua":        l.setTextFill(Color.web("#ef4444")); l.setStyle("-fx-background-color:rgba(239,68,68,0.15);-fx-background-radius:20;"); break;
-            case "Bị vượt giá": l.setTextFill(Color.web("#f59e0b")); l.setStyle("-fx-background-color:rgba(245,158,11,0.15);-fx-background-radius:20;"); break;
-            default:            l.setTextFill(Color.web(MUTED)); l.setStyle("-fx-background-color:rgba(136,153,187,0.15);-fx-background-radius:20;"); break;
+            case "Đã thắng":        l.setTextFill(Color.web("#10b981")); l.setStyle("-fx-background-color:rgba(16,185,129,0.15);-fx-background-radius:20;"); break;
+            case "Thua":            l.setTextFill(Color.web("#ef4444")); l.setStyle("-fx-background-color:rgba(239,68,68,0.15);-fx-background-radius:20;"); break;
+            case "Đang dẫn đầu":   l.setTextFill(Color.web("#10b981")); l.setStyle("-fx-background-color:rgba(16,185,129,0.12);-fx-background-radius:20;"); break;
+            case "Bị vượt giá":    l.setTextFill(Color.web("#f59e0b")); l.setStyle("-fx-background-color:rgba(245,158,11,0.15);-fx-background-radius:20;"); break;
+            default:               l.setTextFill(Color.web(MUTED)); l.setStyle("-fx-background-color:rgba(136,153,187,0.15);-fx-background-radius:20;"); break;
         }
         return l;
     }

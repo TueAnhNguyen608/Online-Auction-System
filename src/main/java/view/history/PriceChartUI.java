@@ -1,4 +1,4 @@
-package view;
+package view.history;
 
 import client.AuctionClient;
 import common.CommandType;
@@ -21,6 +21,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import view.SidebarHelper;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -49,8 +50,8 @@ public class PriceChartUI {
     private double[] priceData = {10,11.5,13,14,12.5,15,17,16,19,21,20,22.5,25,24,27,30,28,32,31,34,33,36,38,35,37,40,38,36,34,32,33,35,34,32.5};
     private String[] xLabels   = {"14/05","15/05","16/05","17/05","18/05","19/05","20/05"};
 
-    public void show(AuctionClient client, String itemId, String itemName) {
-        this.currentUser = null;
+    public void show(AuctionClient client, String itemId, String itemName, User user) {
+        this.currentUser = user;   // ← Fix: không còn null nữa
         this.client = client; this.itemId = itemId; this.itemName = itemName;
         Stage stage = new Stage();
         stage.setTitle("Biểu đồ giá – " + itemName);
@@ -92,12 +93,14 @@ public class PriceChartUI {
         titleBox.getChildren().addAll(t, sub);
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
 
-        // ComboBox
+        // ComboBox - Load danh sách items thật từ server
         ComboBox<String> cb = new ComboBox<>();
-        cb.getItems().add(itemName != null ? itemName : "Chọn sản phẩm");
-        cb.setValue(itemName != null ? itemName : "Chọn sản phẩm");
+        cb.getItems().add(itemName != null && !itemName.isEmpty() ? itemName : "Chọn sản phẩm");
+        cb.setValue(itemName != null && !itemName.isEmpty() ? itemName : "Chọn sản phẩm");
         cb.setPrefHeight(36); cb.setPrefWidth(210);
         cb.setStyle("-fx-background-color:"+BG_IN+";-fx-border-color:"+BORDER+";-fx-border-radius:8;-fx-background-radius:8;-fx-font-size:12;");
+        // Load items thật từ server vào combobox
+        loadItemsIntoComboBox(cb, stage);
         header.getChildren().addAll(titleBox, sp, cb);
 
         // Range buttons
@@ -226,6 +229,59 @@ public class PriceChartUI {
                 });
             } catch (Exception e) { Platform.runLater(() -> drawChart(chartCanvas)); }
         }).start();
+    }
+
+    /**
+     * Load danh sách active items từ server để điền vào ComboBox.
+     * Khi user chọn item khác → cập nhật itemId và vẽ lại chart.
+     */
+    @SuppressWarnings("unchecked")
+    private void loadItemsIntoComboBox(ComboBox<String> cb, Stage stage) {
+        // Map từ itemName → itemId để khi user chọn ta biết itemId
+        java.util.Map<String, String> nameToId = new java.util.LinkedHashMap<>();
+
+        new Thread(() -> {
+            try {
+                ResponseMessage resp = client.sendRequest(CommandType.GET_ACTIVE_ITEMS, null);
+                Platform.runLater(() -> {
+                    if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                        try {
+                            com.google.gson.reflect.TypeToken<List<Map<String,Object>>> tt =
+                                    new com.google.gson.reflect.TypeToken<List<Map<String,Object>>>(){};
+                            List<Map<String,Object>> items = gson.fromJson(gson.toJson(resp.getData()), tt.getType());
+                            cb.getItems().clear();
+                            if (items != null) {
+                                for (Map<String, Object> item : items) {
+                                    String id   = item.getOrDefault("id",   "").toString();
+                                    String name = item.getOrDefault("name", "?").toString();
+                                    cb.getItems().add(name);
+                                    nameToId.put(name, id);
+                                }
+                            }
+                            // Chọn item hiện tại nếu có
+                            if (itemName != null && !itemName.isEmpty() && cb.getItems().contains(itemName)) {
+                                cb.setValue(itemName);
+                            } else if (!cb.getItems().isEmpty()) {
+                                cb.setValue(cb.getItems().get(0));
+                                itemId = nameToId.getOrDefault(cb.getValue(), itemId);
+                                loadData();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                });
+            } catch (Exception ignored) {}
+        }).start();
+
+        // Khi chọn item khác → load chart mới
+        cb.setOnAction(e -> {
+            String selected = cb.getValue();
+            if (selected != null && nameToId.containsKey(selected)) {
+                itemId = nameToId.get(selected);
+                itemName = selected;
+                stage.setTitle("Biểu đồ giá – " + itemName);
+                loadData();
+            }
+        });
     }
 
     private void parseAndDraw(Object data) {

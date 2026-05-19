@@ -4,7 +4,6 @@ import client.AuctionClient;
 import common.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,6 +19,9 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import view.history.MyBidsHistoryUI;
+import view.history.PriceChartUI;
+import view.history.WonProductsUI;
 
 import java.time.LocalDateTime;
 import java.util.List;

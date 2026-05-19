@@ -1,4 +1,3 @@
-
 package common;
 
 import java.io.Serializable;
@@ -15,6 +14,10 @@ public class Bid extends Entity {
     private LocalDateTime bidTime;
     private boolean isAutoBid;
     private boolean isWinning;
+
+    // ===== THÊM CHO NHÓM 4 (History) =====
+    private double finalPrice;
+    private String itemStatus;
 
     public Bid() {
         this.setId(java.util.UUID.randomUUID().toString());
@@ -58,6 +61,13 @@ public class Bid extends Entity {
 
     public boolean isWinning() { return isWinning; }
     public void setWinning(boolean winning) { isWinning = winning; }
+
+    // ===== GETTER / SETTER CHO NHÓM 4 =====
+    public double getFinalPrice() { return finalPrice; }
+    public void setFinalPrice(double finalPrice) { this.finalPrice = finalPrice; }
+
+    public String getItemStatus() { return itemStatus; }
+    public void setItemStatus(String itemStatus) { this.itemStatus = itemStatus; }
 
     // CÁCH 1: Dùng System.currentTimeMillis() - ĐƠN GIẢN NHẤT
     public long getTimestampMillis() {
