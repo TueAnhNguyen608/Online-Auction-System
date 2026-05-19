@@ -31,14 +31,18 @@ public enum CommandType implements Serializable {
     GET_PRICE_HISTORY,
     CHANGE_PASSWORD,
     UPDATE_USER_INFO,
+    UPDATE_PROFILE,  // Huyền đã thêm
 
     // ADMIN
     GET_ALL_USERS,
     GET_ALL_BIDS,
     GET_SYSTEM_STATS,
 
+    // REALTIME (thêm để hỗ trợ subscribe/unsubscribe)
+    SUBSCRIBE_ITEM,
+    UNSUBSCRIBE_ITEM,
+
     // SYSTEM
     KEEP_ALIVE,
     DISCONNECT
 }
-

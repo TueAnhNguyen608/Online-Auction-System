@@ -2,6 +2,7 @@ package client;
 
 import java.io.*;
 import java.net.*;
+import java.util.function.Consumer;
 import com.google.gson.Gson;
 import common.*;
 
@@ -54,5 +55,43 @@ public class AuctionClient {
     public void disconnect() throws IOException {
         sendRequest(CommandType.LOGOUT, null);
         socket.close();
+    }
+
+    // ── Các method thêm mới để hỗ trợ realtime ───────────────────
+
+    public void startRealtimeListener(Consumer<ResponseMessage> callback) {
+        if (callback == null) return;
+        Thread listenerThread = new Thread(() -> {
+            try {
+                String line;
+                while ((line = in.readLine()) != null) {
+                    ResponseMessage msg = gson.fromJson(line, ResponseMessage.class);
+                    callback.accept(msg);
+                }
+            } catch (IOException e) {
+                System.out.println("Realtime listener dừng: " + e.getMessage());
+            }
+        });
+        listenerThread.setDaemon(true);
+        listenerThread.start();
+    }
+
+    public void subscribeItem(String itemId) {
+        try {
+            sendRequest(CommandType.GET_BID_HISTORY, itemId);
+        } catch (IOException e) {
+            System.out.println("subscribeItem lỗi: " + e.getMessage());
+        }
+    }
+
+    public void unsubscribeItem(String itemId) {
+        // Placeholder – server chưa có lệnh unsubscribe
+        System.out.println("unsubscribeItem: " + itemId);
+    }
+    public ResponseMessage setAutoBid(String itemId, double maxAmount) throws IOException {
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("itemId", itemId);
+        data.put("maxAmount", maxAmount);
+        return sendRequest(CommandType.SET_AUTO_BID, data);
     }
 }

@@ -1,14 +1,107 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="CONTROLLER_NAME"
-            prefHeight="400.0" prefWidth="600.0">
+<VBox fx:id="rootBox"
+      xmlns="http://javafx.com/javafx/26"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="view.notification.RealTimeAlertPanel"
+      prefWidth="340"
+      spacing="0"
+      style="-fx-background-color: transparent; -fx-padding: 6;">
 
-</AnchorPane>
+    <VBox spacing="0"
+          style="-fx-background-color: #0c1535;
+                 -fx-background-radius: 8;
+                 -fx-border-color: #1E3A5F;
+                 -fx-border-radius: 8;
+                 -fx-border-width: 1;
+                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 10, 0, 0, 3);">
+
+        <!-- HEADER: giống tab bar của ProductListPanel -->
+        <HBox fx:id="headerBox"
+              alignment="CENTER_LEFT"
+              spacing="10"
+              style="-fx-background-color: #162550;
+                     -fx-background-radius: 8 8 0 0;
+                     -fx-padding: 10 14 10 14;
+                     -fx-border-color: transparent transparent #1E3A5F transparent;
+                     -fx-border-width: 0 0 1 0;">
+
+            <!-- Icon vòng tròn vàng -->
+            <StackPane prefWidth="30" prefHeight="30"
+                       style="-fx-background-color: #F5C518;
+                              -fx-background-radius: 15;">
+                <Label fx:id="lblIcon"
+                       text="🔔"
+                       style="-fx-font-size: 14px;"/>
+            </StackPane>
+
+            <!-- Tiêu đề vàng giống tab active -->
+            <Label fx:id="lblTitle"
+                   text="Thông báo mới"
+                   style="-fx-text-fill: #F5C518;
+                          -fx-font-size: 13px;
+                          -fx-font-weight: bold;"
+                   HBox.hgrow="ALWAYS"
+                   maxWidth="Infinity"/>
+
+            <!-- Nút đóng -->
+            <Button fx:id="btnClose"
+                    text="✕"
+                    style="-fx-background-color: #0e1c40;
+                           -fx-background-radius: 6;
+                           -fx-border-color: #2A4A6E;
+                           -fx-border-radius: 6;
+                           -fx-border-width: 1;
+                           -fx-text-fill: #CCDFF5;
+                           -fx-font-size: 11px;
+                           -fx-cursor: hand;
+                           -fx-pref-width: 24;
+                           -fx-pref-height: 24;
+                           -fx-padding: 0;"/>
+        </HBox>
+
+        <!-- BODY: giống background #0e1c40 của header bar -->
+        <VBox spacing="10"
+              style="-fx-background-color: #0e1c40;
+                     -fx-background-radius: 0 0 8 8;
+                     -fx-padding: 12 14 12 14;">
+
+            <!-- Nội dung -->
+            <Label fx:id="lblMessage"
+                   text="Nội dung thông báo sẽ hiện ở đây."
+                   wrapText="true"
+                   style="-fx-text-fill: #CCDFF5;
+                          -fx-font-size: 12px;"
+                   maxWidth="300"/>
+
+            <!-- Footer: thời gian + nút -->
+            <HBox alignment="CENTER_LEFT" spacing="0">
+                <Label fx:id="lblTime"
+                       text="Vừa xong"
+                       style="-fx-text-fill: #4A6A8A;
+                              -fx-font-size: 11px;"
+                       HBox.hgrow="ALWAYS"
+                       maxWidth="Infinity"/>
+
+                <Button text="Xem ngay →"
+                        style="-fx-background-color: #F5C518;
+                               -fx-background-radius: 6;
+                               -fx-border-color: transparent;
+                               -fx-border-radius: 6;
+                               -fx-text-fill: #0A1929;
+                               -fx-font-size: 11px;
+                               -fx-font-weight: bold;
+                               -fx-cursor: hand;
+                               -fx-padding: 5 12 5 12;"/>
+            </HBox>
+        </VBox>
+    </VBox>
+</VBox>

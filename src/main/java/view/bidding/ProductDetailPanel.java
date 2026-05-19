@@ -1,17 +1,23 @@
 package view.bidding;
 
+import client.AuctionClient;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import common.*;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
+import view.common.SessionManager;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class ProductDetailPanel implements Initializable {
@@ -56,9 +62,12 @@ public class ProductDetailPanel implements Initializable {
     private long currentPrice     = 24_500_000L;
     private long minStep          = 500_000L;
     private Timeline countdownTimer;
-
-    // Tên người dùng hiện tại (khi tích hợp server lấy từ SessionManager)
+    private String itemId; // ĐÃ THÊM: lưu itemId để gọi server
     private String currentUsername = "Bạn";
+
+    private final Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+            .create();
 
     public static class BidRow {
         private final String no, bidder, amount, time;
@@ -73,18 +82,67 @@ public class ProductDetailPanel implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        if (lblUserName != null && view.common.SessionManager.getCurrentUser() != null) {
+            lblUserName.setText(view.common.SessionManager.getCurrentUser().getUsername());
+        }
         tableBidHistory.sceneProperty().addListener((obs, o, scene) -> {
             if (scene != null) {
                 java.net.URL css = getClass().getResource("/css/bidding_style.css");
                 if (css != null) { String p = css.toExternalForm(); if (!scene.getStylesheets().contains(p)) scene.getStylesheets().add(p); }
             }
         });
+        // Lấy tên user từ SessionManager
+        if (SessionManager.getCurrentUser() != null) {
+            currentUsername = SessionManager.getCurrentUser().getUsername();
+        }
         setupBidHistoryTable();
         setupHovers();
         bindImageSize();
         loadSampleData();
         startCountdown();
         styleHeaderTable();
+    }
+
+    // ĐÃ THÊM: setter để ProductListPanel truyền itemId vào
+    public void setItemId(String id) {
+        this.itemId = id;
+        loadBidHistoryFromServer(); // load lịch sử thật từ server
+    }
+
+    // ĐÃ THÊM: load lịch sử đấu giá từ server
+    private void loadBidHistoryFromServer() {
+        if (itemId == null) return;
+        new Thread(() -> {
+            try {
+                AuctionClient client = SessionManager.getClient();
+                if (client == null) return;
+                ResponseMessage resp = client.getBidHistory(itemId);
+                if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Bid>>(){}.getType();
+                    List<Bid> bids = gson.fromJson(gson.toJson(resp.getData()), listType);
+                    if (bids != null) {
+                        List<BidRow> rows = new ArrayList<>();
+                        for (int i = 0; i < bids.size(); i++) {
+                            Bid bid = bids.get(i);
+                            String time = bid.getBidTime() != null ?
+                                    bid.getBidTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) : "";
+                            rows.add(new BidRow(
+                                    String.valueOf(i + 1),
+                                    bid.getBidderName() != null ? bid.getBidderName() : "N/A",
+                                    formatPrice((long) bid.getAmount()),
+                                    time
+                            ));
+                        }
+                        Platform.runLater(() -> {
+                            tableBidHistory.setItems(FXCollections.observableArrayList(rows));
+                            lblBidCount.setText(String.valueOf(rows.size()));
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Lỗi load bid history: " + e.getMessage());
+            }
+        }).start();
     }
 
     public void loadProduct(int id, String name, long price, String seller,
@@ -102,15 +160,12 @@ public class ProductDetailPanel implements Initializable {
         lblBidCount.setText("0");
         lblBidWarning.setText("⚠  Giá phải lớn hơn " + formatPrice(currentPrice));
         lblBidWarning.setStyle("-fx-text-fill: #F5C518; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
-
-        // Xóa lịch sử cũ khi load sản phẩm mới
         tableBidHistory.setItems(FXCollections.observableArrayList());
 
         try {
             java.net.URL imgUrl = getClass().getResource(imagePath);
             if (imgUrl == null) imgUrl = getClass().getResource("/icons/sp1.png");
-            if (imgUrl != null)
-                imgProduct.setImage(new javafx.scene.image.Image(imgUrl.toExternalForm()));
+            if (imgUrl != null) imgProduct.setImage(new javafx.scene.image.Image(imgUrl.toExternalForm()));
         } catch (Exception e) {
             System.out.println("[ProductDetailPanel] Không load ảnh: " + imagePath);
         }
@@ -120,7 +175,7 @@ public class ProductDetailPanel implements Initializable {
     private void loadSampleData() {
         lblProductName.setText("iPhone 15 Pro Max 1TB");
         lblDesc.setText("Apple chip A17 Pro, RAM 8GB, bộ nhớ 1TB, màn hình Super Retina XDR 6.7 inch, camera 48MP.");
-        lblCategory.setText("Điện thoại");
+        lblCategory.setText("Điện tử");
         lblCondition.setText("Mới 100%");
         lblSeller.setText("Nguyễn Văn A");
         lblPostedDate.setText("01/06/2024 14:30:25");
@@ -153,7 +208,6 @@ public class ProductDetailPanel implements Initializable {
                 setText(v); setStyle("-fx-alignment: CENTER; -fx-text-fill: #C0D8F0;");
             }
         });
-
         colBidder.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getBidder()));
         colBidder.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean e) {
@@ -163,7 +217,6 @@ public class ProductDetailPanel implements Initializable {
                 setText(v); setStyle("-fx-alignment: CENTER_LEFT; -fx-text-fill: " + color + "; -fx-padding: 0 0 0 10;");
             }
         });
-
         colBidAmount.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getAmount()));
         colBidAmount.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean e) {
@@ -173,7 +226,6 @@ public class ProductDetailPanel implements Initializable {
                 setText(v); setStyle("-fx-alignment: CENTER; -fx-text-fill: " + color + "; -fx-font-weight: bold;");
             }
         });
-
         colBidTime.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getTime()));
         colBidTime.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean e) {
@@ -202,18 +254,16 @@ public class ProductDetailPanel implements Initializable {
     }
 
     private void styleHeaderTable() {
-        javafx.application.Platform.runLater(() -> {
-            javafx.application.Platform.runLater(() -> {
-                tableBidHistory.lookupAll(".column-header").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
-                tableBidHistory.lookupAll(".column-header .label").forEach(node ->
-                        node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;"));
-                tableBidHistory.lookupAll(".column-header-background").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550;"));
-                tableBidHistory.lookupAll(".filler").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550;"));
-            });
-        });
+        Platform.runLater(() -> Platform.runLater(() -> {
+            tableBidHistory.lookupAll(".column-header").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
+            tableBidHistory.lookupAll(".column-header .label").forEach(node ->
+                    node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;"));
+            tableBidHistory.lookupAll(".column-header-background").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550;"));
+            tableBidHistory.lookupAll(".filler").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550;"));
+        }));
     }
 
     private void startCountdown() {
@@ -245,21 +295,15 @@ public class ProductDetailPanel implements Initializable {
         b.setOnMouseExited(e  -> b.setStyle(n));
     }
 
-    // [FIX] Tab Danh Sách → về ProductListPanel
     @FXML void onTabDanhSach() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/ProductListPanel.fxml");
     }
-
     @FXML void onTabDauGia() { /* đang ở đây */ }
-
-    // [FIX] Tab Đấu Giá Tự Động → AutoBidPanel
     @FXML void onTabAutoBid() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/AutoBidPanel.fxml");
     }
-
-    // [FIX] Nút ← Danh sách sản phẩm → về ProductListPanel
     @FXML void onBack() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/ProductListPanel.fxml");
@@ -267,12 +311,10 @@ public class ProductDetailPanel implements Initializable {
 
     private void navigate(String fxmlPath) {
         try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                    getClass().getResource(fxmlPath));
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(fxmlPath));
             javafx.scene.Parent root = loader.load();
             javafx.stage.Stage stage = (javafx.stage.Stage) btnBack.getScene().getWindow();
-            stage.setScene(new javafx.scene.Scene(root,
-                    stage.getScene().getWidth(), stage.getScene().getHeight()));
+            stage.setScene(new javafx.scene.Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -295,7 +337,6 @@ public class ProductDetailPanel implements Initializable {
         } catch (NumberFormatException ignored) {}
     }
 
-    // [FIX] Đặt giá thành công → thêm vào bảng lịch sử
     @FXML void onPlaceBid() {
         String input = txtBidAmount.getText().trim();
         try {
@@ -306,38 +347,63 @@ public class ProductDetailPanel implements Initializable {
                 return;
             }
 
-            // Cập nhật giá hiện tại
+            // ĐÃ THÊM: gọi server đặt giá nếu có itemId
+            if (itemId != null && SessionManager.getClient() != null) {
+                User user = SessionManager.getCurrentUser();
+                Bid bid = new Bid();
+                bid.setItemId(itemId);
+                bid.setAmount(amount);
+                if (user != null) {
+                    bid.setBidderId(user.getId());
+                    bid.setBidderName(user.getUsername());
+                }
+                new Thread(() -> {
+                    try {
+                        ResponseMessage resp = SessionManager.getClient().placeBid(bid);
+                        Platform.runLater(() -> {
+                            if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                                currentPrice = amount;
+                                lblCurrentPrice.setText(formatPrice(currentPrice));
+                                lblBidWarning.setText("✓  Đặt giá thành công: " + formatPrice(amount));
+                                lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
+                                txtBidAmount.clear();
+                                loadBidHistoryFromServer(); // reload lịch sử thật
+                            } else {
+                                lblBidWarning.setText("✕  " + (resp != null ? resp.getMessage() : "Lỗi đặt giá"));
+                                lblBidWarning.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
+                            }
+                        });
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            lblBidWarning.setText("✕  Lỗi kết nối: " + e.getMessage());
+                            lblBidWarning.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
+                        });
+                    }
+                }).start();
+                return;
+            }
+
+            // Fallback: xử lý local nếu không có server
             currentPrice = amount;
             lblCurrentPrice.setText(formatPrice(currentPrice));
             lblBidWarning.setText("✓  Đặt giá thành công: " + formatPrice(amount));
             lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
 
-            // [FIX] Thêm vào đầu bảng lịch sử
             String now = java.time.LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
             int newNo = tableBidHistory.getItems().size() + 1;
             BidRow newRow = new BidRow(String.valueOf(newNo), currentUsername, formatPrice(amount), now);
-
             List<BidRow> updated = new ArrayList<>();
             updated.add(newRow);
             updated.addAll(tableBidHistory.getItems());
-
-            // Đánh lại số thứ tự
             List<BidRow> renumbered = new ArrayList<>();
             for (int i = 0; i < updated.size(); i++) {
                 BidRow r = updated.get(i);
                 renumbered.add(new BidRow(String.valueOf(i+1), r.getBidder(), r.getAmount(), r.getTime()));
             }
             tableBidHistory.setItems(FXCollections.observableArrayList(renumbered));
-
-            // Cập nhật số lượt
             lblBidCount.setText(String.valueOf(renumbered.size()));
-            lblBidWarning.setText("⚠  Giá phải lớn hơn " + formatPrice(currentPrice));
-            lblBidWarning.setStyle("-fx-text-fill: #F5C518; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
-
             txtBidAmount.clear();
-
-            // TODO: gọi AuctionClient.placeBid(bid)
 
         } catch (NumberFormatException ex) {
             lblBidWarning.setText("⚠  Vui lòng nhập số tiền hợp lệ");

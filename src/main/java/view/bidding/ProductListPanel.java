@@ -1,6 +1,13 @@
 package view.bidding;
+
+import client.AuctionClient;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import common.*;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -10,8 +17,10 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
+import view.common.SessionManager;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -67,16 +76,21 @@ public class ProductListPanel implements Initializable {
     private List<ProductRow> filteredProducts  = new ArrayList<>();
     private Timeline countdownTimer;
 
+    private final Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+            .create();
+
     public static class ProductRow {
         private final int stt;
         private final String name, seller;
         private final long price;
         private long remainingSeconds;
         private final StringProperty timeDisplay = new SimpleStringProperty();
+        private String itemId;
 
-        public ProductRow(int stt, String name, long price, String seller, long days) {
+        public ProductRow(int stt, String name, long price, String seller, long remainingSecs) {
             this.stt = stt; this.name = name; this.price = price; this.seller = seller;
-            this.remainingSeconds = days * 86400L;
+            this.remainingSeconds = remainingSecs;
             timeDisplay.set(fmt(remainingSeconds));
         }
         public void tick() { if (remainingSeconds > 0) remainingSeconds--; timeDisplay.set(fmt(remainingSeconds)); }
@@ -90,12 +104,17 @@ public class ProductListPanel implements Initializable {
         public String getSeller()            { return seller; }
         public long   getPrice()             { return price; }
         public long   getRemainingSeconds()  { return remainingSeconds; }
+        public String getItemId()            { return itemId; }
+        public void   setItemId(String id)   { this.itemId = id; }
         public StringProperty timeDisplayProperty() { return timeDisplay; }
         public String getFormattedPrice() { return String.format("%,d", price).replace(",", ".") + " đ"; }
     }
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        if (lblUserName != null && view.common.SessionManager.getCurrentUser() != null) {
+            lblUserName.setText(view.common.SessionManager.getCurrentUser().getUsername());
+        }
         tableProducts.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableProducts.setFixedCellSize(ROW_HEIGHT);
         tableProducts.prefHeightProperty().bind(
@@ -113,29 +132,98 @@ public class ProductListPanel implements Initializable {
         setupTableColumns();
         setupRowFactory();
         setupHoverEffects();
-        loadSampleData();
+        loadData(); // ĐÃ ĐỔI: dùng loadData thay vì loadSampleData
         setupSearchListener();
         updateTable();
         startCountdown();
         styleNavButtons();
-        javafx.application.Platform.runLater(() -> {
-            javafx.application.Platform.runLater(() -> {
-                tableProducts.lookupAll(".column-header").forEach(node ->
-                        node.setStyle("-fx-background-color: #1E4268; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
-                tableProducts.lookupAll(".column-header .label").forEach(node ->
-                        node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 13px;"));
-                tableProducts.lookupAll(".column-header-background").forEach(node ->
-                        node.setStyle("-fx-background-color: #1E4268;"));
-                tableProducts.lookupAll(".filler").forEach(node ->
-                        node.setStyle("-fx-background-color: #1E4268;"));
-                javafx.scene.Node header = tableProducts.lookup("TableHeaderRow");
-                if (header != null)
-                    header.setStyle("-fx-min-height: 45px; -fx-pref-height: 45px; -fx-max-height: 45px;");
-            });
-        });
+        Platform.runLater(() -> Platform.runLater(() -> {
+            tableProducts.lookupAll(".column-header").forEach(node ->
+                    node.setStyle("-fx-background-color: #1E4268; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
+            tableProducts.lookupAll(".column-header .label").forEach(node ->
+                    node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 13px;"));
+            tableProducts.lookupAll(".column-header-background").forEach(node ->
+                    node.setStyle("-fx-background-color: #1E4268;"));
+            tableProducts.lookupAll(".filler").forEach(node ->
+                    node.setStyle("-fx-background-color: #1E4268;"));
+            javafx.scene.Node header = tableProducts.lookup("TableHeaderRow");
+            if (header != null)
+                header.setStyle("-fx-min-height: 45px; -fx-pref-height: 45px; -fx-max-height: 45px;");
+        }));
     }
 
-    // [THÊM] Màu selected vàng giữ nguyên khi nhấn, hover xanh khi di chuột
+    // ĐÃ THÊM: Load dữ liệu từ server, fallback về sample nếu lỗi
+    private void loadData() {
+        new Thread(() -> {
+            try {
+                AuctionClient client = SessionManager.getClient();
+                if (client == null) throw new Exception("Chưa có kết nối server");
+                ResponseMessage resp = client.getActiveItems();
+                if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                    java.lang.reflect.Type listType = new TypeToken<List<Item>>(){}.getType();
+                    List<Item> items = gson.fromJson(gson.toJson(resp.getData()), listType);
+                    if (items != null && !items.isEmpty()) {
+                        List<ProductRow> rows = new ArrayList<>();
+                        for (int i = 0; i < items.size(); i++) {
+                            Item item = items.get(i);
+                            long remaining = 0;
+                            if (item.getEndTime() != null) {
+                                remaining = java.time.Duration.between(
+                                        LocalDateTime.now(), item.getEndTime()).getSeconds();
+                                if (remaining < 0) remaining = 0;
+                            }
+                            ProductRow row = new ProductRow(
+                                    i + 1,
+                                    item.getName(),
+                                    (long) item.getCurrentPrice(),
+                                    item.getSellerName() != null ? item.getSellerName() : "N/A",
+                                    remaining
+                            );
+                            row.setItemId(item.getId());
+                            rows.add(row);
+                        }
+                        Platform.runLater(() -> {
+                            allProducts.clear();
+                            allProducts.addAll(rows);
+                            filteredProducts = new ArrayList<>(allProducts);
+                            updateTable();
+                            System.out.println("✅ Loaded " + rows.size() + " sản phẩm từ server");
+                        });
+                        return;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("⚠ Không lấy được dữ liệu server, dùng dữ liệu mẫu: " + e.getMessage());
+            }
+            // Fallback: dùng dữ liệu mẫu
+            Platform.runLater(this::loadSampleData);
+        }).start();
+    }
+
+    private void loadSampleData() {
+        allProducts.clear();
+        allProducts.add(new ProductRow( 1,"iPhone 15 Pro Max 1TB",          25_000_000L,"seller1", 7 * 86400L));
+        allProducts.add(new ProductRow( 2,"iPhone 15 Pro 512GB",            22_000_000L,"seller1", 5 * 86400L));
+        allProducts.add(new ProductRow( 3,"Samsung Galaxy S24 Ultra",       20_000_000L,"seller1",10 * 86400L));
+        allProducts.add(new ProductRow( 4,"Xiaomi 14 Ultra",                15_000_000L,"seller2", 6 * 86400L));
+        allProducts.add(new ProductRow( 5,"Google Pixel 8 Pro",             18_000_000L,"seller2", 8 * 86400L));
+        allProducts.add(new ProductRow( 6,"MacBook Pro M3 Max",             45_000_000L,"seller1",12 * 86400L));
+        allProducts.add(new ProductRow( 7,"Dell XPS 15",                    35_000_000L,"seller2", 9 * 86400L));
+        allProducts.add(new ProductRow( 8,"LG Gram 17",                     28_000_000L,"seller1", 7 * 86400L));
+        allProducts.add(new ProductRow( 9,"Asus ROG Zephyrus G14",          32_000_000L,"seller2",11 * 86400L));
+        allProducts.add(new ProductRow(10,"Sony WH-1000XM5",                 5_000_000L,"seller1", 4 * 86400L));
+        allProducts.add(new ProductRow(11,"AirPods Pro 2",                   4_500_000L,"seller1", 3 * 86400L));
+        allProducts.add(new ProductRow(12,"Bose QC Ultra",                   6_000_000L,"seller2", 5 * 86400L));
+        allProducts.add(new ProductRow(13,"Apple Watch Ultra 2",            15_000_000L,"seller1", 8 * 86400L));
+        allProducts.add(new ProductRow(14,"Samsung Galaxy Watch 6 Classic",  7_000_000L,"seller2", 6 * 86400L));
+        allProducts.add(new ProductRow(15,"Magic Keyboard",                  3_000_000L,"seller1",10 * 86400L));
+        allProducts.add(new ProductRow(16,"Logitech MX Master 3S",           2_000_000L,"seller2",15 * 86400L));
+        allProducts.add(new ProductRow(17,"iPad Pro 12.9 inch M2",          28_000_000L,"seller1",20 * 86400L));
+        allProducts.add(new ProductRow(18,"Samsung Tab S9 Ultra",           22_000_000L,"seller2",18 * 86400L));
+        filteredProducts = new ArrayList<>(allProducts);
+        updateTable();
+    }
+
     private void setupRowFactory() {
         tableProducts.setRowFactory(tv -> new TableRow<ProductRow>() {
             @Override
@@ -153,7 +241,6 @@ public class ProductListPanel implements Initializable {
                     String selected = "-fx-background-color: #2A5090; -fx-border-color: #F5C518; -fx-border-width: 1; -fx-cursor: hand;";
 
                     if (isSelected()) setStyle(selected); else setStyle(normal);
-
                     setOnMouseEntered(e -> { if (!isSelected()) setStyle(hover); });
                     setOnMouseExited(e  -> { if (!isSelected()) setStyle(normal); else setStyle(selected); });
                     setOnMouseClicked(e -> {
@@ -163,7 +250,6 @@ public class ProductListPanel implements Initializable {
                     });
                 }
             }
-            // Lắng nghe thay đổi selection để cập nhật màu
             {
                 tableProducts.getSelectionModel().selectedIndexProperty().addListener((obs, o, n) -> {
                     if (getIndex() < 0 || getItem() == null) return;
@@ -233,13 +319,6 @@ public class ProductListPanel implements Initializable {
         String sh = "-fx-background-color: #F5C518; -fx-background-radius: 0 8 8 0; -fx-border-color: transparent; -fx-text-fill: #0A1929; -fx-font-size: 14px; -fx-padding: 8 18 8 16; -fx-pref-height: 42; -fx-cursor: hand;";
         addHover(btnSearch, sn, sh);
         styleNavButtons();
-        tableProducts.sceneProperty().addListener((obs, o, scene) -> {
-            if (scene != null) {
-                javafx.application.Platform.runLater(() ->
-                        tableProducts.lookupAll(".column-header").forEach(node ->
-                                node.setStyle("-fx-background-color: #1E4268;")));
-            }
-        });
     }
 
     private void addHover(Button b, String n, String h) {
@@ -261,32 +340,10 @@ public class ProductListPanel implements Initializable {
         countdownTimer.play();
     }
 
-    private void loadSampleData() {
-        allProducts.clear();
-        allProducts.add(new ProductRow( 1,"iPhone 15 Pro Max 1TB",          25_000_000L,"seller1", 7));
-        allProducts.add(new ProductRow( 2,"iPhone 15 Pro 512GB",            22_000_000L,"seller1", 5));
-        allProducts.add(new ProductRow( 3,"Samsung Galaxy S24 Ultra",       20_000_000L,"seller1",10));
-        allProducts.add(new ProductRow( 4,"Xiaomi 14 Ultra",                15_000_000L,"seller2", 6));
-        allProducts.add(new ProductRow( 5,"Google Pixel 8 Pro",             18_000_000L,"seller2", 8));
-        allProducts.add(new ProductRow( 6,"MacBook Pro M3 Max",             45_000_000L,"seller1",12));
-        allProducts.add(new ProductRow( 7,"Dell XPS 15",                    35_000_000L,"seller2", 9));
-        allProducts.add(new ProductRow( 8,"LG Gram 17",                     28_000_000L,"seller1", 7));
-        allProducts.add(new ProductRow( 9,"Asus ROG Zephyrus G14",          32_000_000L,"seller2",11));
-        allProducts.add(new ProductRow(10,"Sony WH-1000XM5",                 5_000_000L,"seller1", 4));
-        allProducts.add(new ProductRow(11,"AirPods Pro 2",                   4_500_000L,"seller1", 3));
-        allProducts.add(new ProductRow(12,"Bose QC Ultra",                   6_000_000L,"seller2", 5));
-        allProducts.add(new ProductRow(13,"Apple Watch Ultra 2",            15_000_000L,"seller1", 8));
-        allProducts.add(new ProductRow(14,"Samsung Galaxy Watch 6 Classic",  7_000_000L,"seller2", 6));
-        allProducts.add(new ProductRow(15,"Magic Keyboard",                  3_000_000L,"seller1",10));
-        allProducts.add(new ProductRow(16,"Logitech MX Master 3S",           2_000_000L,"seller2",15));
-        allProducts.add(new ProductRow(17,"iPad Pro 12.9 inch M2",          28_000_000L,"seller1",20));
-        allProducts.add(new ProductRow(18,"Samsung Tab S9 Ultra",           22_000_000L,"seller2",18));
-        filteredProducts = new ArrayList<>(allProducts);
-    }
-
     private void setupSearchListener() {
         txtSearch.textProperty().addListener((obs, o, n) -> filterProducts(n));
     }
+
     private void filterProducts(String kw) {
         if (kw == null || kw.trim().isEmpty()) {
             filteredProducts = new ArrayList<>(allProducts);
@@ -298,6 +355,7 @@ public class ProductListPanel implements Initializable {
         }
         currentPage = 1; updateTable();
     }
+
     private void updateTable() {
         int total = filteredProducts.size();
         int pages = Math.max(1, (int) Math.ceil((double) total / PAGE_SIZE));
@@ -307,6 +365,7 @@ public class ProductListPanel implements Initializable {
         tableProducts.setItems(FXCollections.observableArrayList(filteredProducts.subList(from, to)));
         rebuildPageButtons(pages);
     }
+
     private void rebuildPageButtons(int total) {
         paginationBox.getChildren().removeIf(n -> n instanceof Button && "p".equals(((Button) n).getUserData()));
         int idx = paginationBox.getChildren().indexOf(btnPrev) + 1;
@@ -341,23 +400,16 @@ public class ProductListPanel implements Initializable {
         openProductDetail(selected);
     }
 
-    @FXML void onTabAutoBid() {
-        navigate("/fxml/bidding/AutoBidPanel.fxml");
-    }
-
-    @FXML void onQuayLai() {
-        navigate("/fxml/bidding/MainDashboardUI.fxml");
-    }
+    @FXML void onTabAutoBid() { navigate("/fxml/bidding/AutoBidPanel.fxml"); }
+    @FXML void onQuayLai()    { navigate("/fxml/bidding/MainDashboardUI.fxml"); }
 
     private void navigate(String fxmlPath) {
         try {
             if (countdownTimer != null) countdownTimer.stop();
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                    getClass().getResource(fxmlPath));
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(fxmlPath));
             javafx.scene.Parent root = loader.load();
             javafx.stage.Stage stage = (javafx.stage.Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new javafx.scene.Scene(root,
-                    stage.getScene().getWidth(), stage.getScene().getHeight()));
+            stage.setScene(new javafx.scene.Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -371,10 +423,34 @@ public class ProductListPanel implements Initializable {
             controller.loadProduct(
                     product.getStt(), product.getName(), product.getPrice(),
                     product.getSeller(), product.getRemainingSeconds(),
-                    "/icons/sp" + product.getStt() + ".png");
+                    getImagePath(product.getName()));
+            if (product.getItemId() != null) controller.setItemId(product.getItemId());
             javafx.stage.Stage stage = (javafx.stage.Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new javafx.scene.Scene(root,
-                    stage.getScene().getWidth(), stage.getScene().getHeight()));
+            stage.setScene(new javafx.scene.Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
+    }
+
+    private String getImagePath(String productName) {
+        if (productName == null) return "/icons/sp1.png";
+        String name = productName.toLowerCase();
+        if (name.contains("iphone 15 pro max"))    return "/icons/sp1.png";
+        if (name.contains("iphone 15 pro"))        return "/icons/sp2.png";
+        if (name.contains("samsung galaxy s24"))   return "/icons/sp3.png";
+        if (name.contains("xiaomi 14"))            return "/icons/sp4.png";
+        if (name.contains("google pixel"))         return "/icons/sp5.png";
+        if (name.contains("macbook pro m3 max"))   return "/icons/sp6.png";
+        if (name.contains("dell xps"))             return "/icons/sp7.png";
+        if (name.contains("lg gram"))              return "/icons/sp8.png";
+        if (name.contains("asus rog"))             return "/icons/sp9.png";
+        if (name.contains("sony wh"))              return "/icons/sp10.png";
+        if (name.contains("airpods pro"))          return "/icons/sp11.png";
+        if (name.contains("bose"))                 return "/icons/sp12.png";
+        if (name.contains("apple watch ultra"))    return "/icons/sp13.png";
+        if (name.contains("samsung galaxy watch")) return "/icons/sp14.png";
+        if (name.contains("magic keyboard"))       return "/icons/sp15.png";
+        if (name.contains("logitech"))             return "/icons/sp16.png";
+        if (name.contains("ipad pro"))             return "/icons/sp17.png";
+        if (name.contains("samsung tab"))          return "/icons/sp18.png";
+        return "/icons/sp1.png";
     }
 }

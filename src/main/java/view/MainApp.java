@@ -27,7 +27,6 @@ import java.util.Map;
 
 public class MainApp {
 
-    // ── Theme (đồng bộ với Login/Register/Profile) ─────────────────
     private static final String BG_DEEP     = "#0a0f1e";
     private static final String BG_PANEL    = "#111827";
     private static final String BG_INPUT    = "#1a2336";
@@ -52,16 +51,15 @@ public class MainApp {
         Stage stage = new Stage();
         stage.setTitle("Hệ thống Đấu giá – " + username + " [" + role + "]");
 
-        // ══════════════════════════════════════════════════
-        // KẾT NỐI SERVER (GIỮ NGUYÊN LOGIC CŨ)
-        // ══════════════════════════════════════════════════
         try {
             client = new AuctionClient();
             client.connect("localhost", 9999);
-            // Callback realtime: server push "realtime_update" → reload bảng
-            client.startRealtimeListener(msg -> {
-                Platform.runLater(() -> reloadItemsFromServer(itemData, itemTable));
-            });
+
+            // ĐÃ SỬA: comment out startRealtimeListener vì method chưa có trong AuctionClient
+            // client.startRealtimeListener(msg -> {
+            //     Platform.runLater(() -> reloadItemsFromServer(itemData, itemTable));
+            // });
+
             ResponseMessage loginResp = client.login(username, "123456");
             if (loginResp.getCode() == ResponseCode.SUCCESS) {
                 Object data = loginResp.getData();
@@ -81,30 +79,22 @@ public class MainApp {
             return;
         }
 
-        // ══════════════════════════════════════════════════
-        // DỮ LIỆU & TABLE (GIỮ NGUYÊN LOGIC CŨ)
-        // ══════════════════════════════════════════════════
         ItemManager itemManager = new ItemManager();
         List<Item> itemList = itemManager.loadItems();
         ObservableList<Item> data = FXCollections.observableArrayList(itemList);
-        itemData = data; // lưu vào field
+        itemData = data;
 
         TableView<Item> table = new TableView<>();
-        itemTable = table; // lưu vào field
+        itemTable = table;
         setupTable(table, data);
         VBox.setVgrow(table, Priority.ALWAYS);
 
-        // Filter
         FilteredList<Item> filteredData = new FilteredList<>(data, p -> true);
         table.setItems(filteredData);
 
-        // ══════════════════════════════════════════════════
-        // LAYOUT CHÍNH
-        // ══════════════════════════════════════════════════
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: " + BG_DEEP + ";");
 
-        // ── TOP: MenuBar ──────────────────────────────────
         VBox topArea = new VBox(0);
         topArea.getChildren().addAll(
                 buildMenuBar(stage, table, itemManager, itemList),
@@ -112,7 +102,6 @@ public class MainApp {
         );
         root.setTop(topArea);
 
-        // ── CENTER: Filter + Table ────────────────────────
         VBox centerArea = new VBox(12);
         centerArea.setPadding(new Insets(16, 24, 0, 24));
 
@@ -120,7 +109,6 @@ public class MainApp {
         centerArea.getChildren().addAll(filterRow, table);
         root.setCenter(centerArea);
 
-        // ── BOTTOM: Đặt giá + Đăng bán ───────────────────
         VBox bottomArea = new VBox(0);
         bottomArea.setPadding(new Insets(12, 24, 20, 24));
         bottomArea.setSpacing(12);
@@ -133,14 +121,14 @@ public class MainApp {
             if (selected != null) {
                 lblSelected.setText("Đang chọn: " + selected.getName()
                         + "   |   Giá hiện tại: " + String.format("%,.0f đ", selected.getCurrentPrice()));
-                // Subscribe realtime cho sản phẩm đang chọn
-                if (oldItem != null) client.unsubscribeItem(oldItem.getId());
-                client.subscribeItem(selected.getId());
+
+                // ĐÃ SỬA: comment out vì subscribeItem/unsubscribeItem chưa có trong AuctionClient
+                // if (oldItem != null) client.unsubscribeItem(oldItem.getId());
+                // client.subscribeItem(selected.getId());
             }
         });
 
         HBox bidRow = buildBidRow(table, itemManager, itemList);
-
         VBox addBox = buildAddBox(role, table, data, itemManager, itemList);
 
         bottomArea.getChildren().addAll(
@@ -156,9 +144,6 @@ public class MainApp {
         stage.show();
     }
 
-    // ══════════════════════════════════════════════════════════
-    // MENU BAR
-    // ══════════════════════════════════════════════════════════
     private MenuBar buildMenuBar(Stage stage, TableView<Item> table,
                                  ItemManager itemManager, List<Item> itemList) {
         MenuBar menuBar = new MenuBar();
@@ -175,17 +160,13 @@ public class MainApp {
         MenuItem chartItem    = new MenuItem("📈  Biểu đồ giá");
         MenuItem logoutItem   = new MenuItem("🚪  Đăng xuất");
 
-        // Style menu items
         String miStyle = "-fx-font-size: 13; -fx-padding: 6 20;";
         for (MenuItem mi : new MenuItem[]{profileItem, historyItem, wonItem, chartItem, logoutItem}) {
             mi.setStyle(miStyle);
         }
 
-        // ── GIỮ NGUYÊN LOGIC CŨ ──────────────────────────
         profileItem.setOnAction(e -> new ProfileForm().show(client, currentUser));
-
         historyItem.setOnAction(e -> new MyBidsHistoryUI().show(client, currentUser));
-
         wonItem.setOnAction(e -> new WonProductsUI().show(client, currentUser));
 
         chartItem.setOnAction(e -> {
@@ -211,9 +192,6 @@ public class MainApp {
         return menuBar;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // HEADER (tên user + số dư)
-    // ══════════════════════════════════════════════════════════
     private HBox buildHeader(String username, String role) {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
@@ -222,7 +200,6 @@ public class MainApp {
                 + "-fx-border-color: transparent transparent " + BORDER + " transparent;"
                 + "-fx-border-width: 0 0 1 0;");
 
-        // Avatar mini
         StackPane avatar = new StackPane();
         avatar.setPrefSize(36, 36);
         avatar.setStyle("-fx-background-color: #1e3a6e; -fx-background-radius: 18;");
@@ -230,7 +207,6 @@ public class MainApp {
         avatarLbl.setFont(Font.font(16));
         avatar.getChildren().add(avatarLbl);
 
-        // Tên + role
         VBox userInfo = new VBox(2);
         Label lblName = new Label(username);
         lblName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
@@ -243,7 +219,6 @@ public class MainApp {
         ));
         userInfo.getChildren().addAll(lblName, lblRole);
 
-        // Tiêu đề giữa
         Label lblCenter = new Label("🔨  Hệ thống Đấu giá Trực tuyến");
         lblCenter.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         lblCenter.setTextFill(Color.web(TEXT_MAIN));
@@ -253,7 +228,6 @@ public class MainApp {
         HBox.setHgrow(left, Priority.ALWAYS);
         HBox.setHgrow(right, Priority.ALWAYS);
 
-        // Số dư
         double balance = currentUser != null ? currentUser.getBalance() : 0;
         VBox balanceBox = new VBox(2);
         balanceBox.setAlignment(Pos.CENTER_RIGHT);
@@ -272,9 +246,6 @@ public class MainApp {
         return header;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // FILTER ROW
-    // ══════════════════════════════════════════════════════════
     private HBox buildFilterRow(FilteredList<Item> filteredData) {
         HBox row = new HBox(12);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -304,7 +275,6 @@ public class MainApp {
                         + "-fx-font-size: 12;"
         );
 
-        // GIỮ NGUYÊN LOGIC FILTER CŨ
         Runnable updateFilter = () -> filteredData.setPredicate(item -> {
             boolean matchName   = item.getName().toLowerCase().contains(txtSearch.getText().toLowerCase());
             boolean matchStatus = cbFilter.getValue().equals("Tất cả") || item.getStatus().equals(cbFilter.getValue());
@@ -317,9 +287,6 @@ public class MainApp {
         return row;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // BID ROW (đặt giá)
-    // ══════════════════════════════════════════════════════════
     private HBox buildBidRow(TableView<Item> table, ItemManager itemManager, List<Item> itemList) {
         HBox row = new HBox(12);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -348,7 +315,6 @@ public class MainApp {
         btnBid.setOnMouseEntered(e -> btnBid.setStyle(btnBid.getStyle().replace(ACCENT_GREEN, "#059669")));
         btnBid.setOnMouseExited(e ->  btnBid.setStyle(btnBid.getStyle().replace("#059669", ACCENT_GREEN)));
 
-        // GIỮ NGUYÊN LOGIC ĐẶT GIÁ CŨ
         btnBid.setOnAction(e -> {
             Item selected = table.getSelectionModel().getSelectedItem();
             if (selected == null) {
@@ -375,7 +341,6 @@ public class MainApp {
                             if (resp.getCode() == ResponseCode.SUCCESS) {
                                 showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đặt giá thành công!");
                                 txtBidAmount.clear();
-                                // Reload bảng từ server để lấy dữ liệu mới nhất
                                 reloadItemsFromServer(itemData, itemTable);
                             } else {
                                 showAlert(Alert.AlertType.ERROR, "Lỗi", resp.getMessage());
@@ -394,9 +359,6 @@ public class MainApp {
         return row;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // ADD BOX (đăng bán – chỉ SELLER / ADMIN)
-    // ══════════════════════════════════════════════════════════
     private VBox buildAddBox(String role, TableView<Item> table,
                              ObservableList<Item> data,
                              ItemManager itemManager, List<Item> itemList) {
@@ -436,7 +398,6 @@ public class MainApp {
         );
         btnAdd.setCursor(Cursor.HAND);
 
-        // GIỮ NGUYÊN LOGIC ĐĂNG BÁN CŨ
         btnAdd.setOnAction(e -> {
             try {
                 String name  = txtNewName.getText();
@@ -444,9 +405,18 @@ public class MainApp {
                 if (name.isEmpty()) throw new Exception("Tên sản phẩm không được để trống!");
                 LocalDateTime start = LocalDateTime.now();
                 LocalDateTime end   = start.plusDays(7);
-                Item newItem = new Item(name, "Sản phẩm mới", price, start, end);
+
+                // ĐÃ SỬA: dùng setter thay vì constructor có tham số (tránh lỗi "no suitable constructor")
+                Item newItem = new Item();
+                newItem.setName(name);
+                newItem.setDescription("Sản phẩm mới");
+                newItem.setStartingPrice(price);
+                newItem.setCurrentPrice(price);
+                newItem.setStartTime(start);
+                newItem.setEndTime(end);
                 newItem.setSellerName(currentUser.getUsername());
                 newItem.setStatus("ACTIVE");
+
                 itemList.add(newItem);
                 data.add(newItem);
                 itemManager.saveItems(itemList);
@@ -462,7 +432,6 @@ public class MainApp {
         inputRow.setAlignment(Pos.CENTER_LEFT);
         box.getChildren().addAll(lblSeller, inputRow);
 
-        // Ẩn nếu không phải SELLER/ADMIN
         if (!"SELLER".equalsIgnoreCase(role) && !"ADMIN".equalsIgnoreCase(role)) {
             box.setVisible(false);
             box.setManaged(false);
@@ -471,9 +440,7 @@ public class MainApp {
         return box;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // TABLE SETUP (GIỮ NGUYÊN CẤU TRÚC CỘT CŨ, thêm style)
-    // ══════════════════════════════════════════════════════════
+    @SuppressWarnings("unchecked")
     private void setupTable(TableView<Item> table, ObservableList<Item> data) {
         table.setStyle(
                 "-fx-background-color: " + BG_PANEL + ";"
@@ -482,7 +449,7 @@ public class MainApp {
                         + "-fx-background-radius: 10;"
                         + "-fx-table-cell-border-color: " + BORDER + ";"
         );
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         table.setPlaceholder(new Label("Không có dữ liệu") {{
             setTextFill(Color.web(TEXT_MUTED));
             setFont(Font.font("Segoe UI", 13));
@@ -543,7 +510,6 @@ public class MainApp {
         table.getColumns().addAll(colName, colPrice, colBidder, colSeller, colStatus);
         table.setItems(data);
 
-        // Row hover effect
         table.setRowFactory(tv -> {
             TableRow<Item> row = new TableRow<>();
             row.setStyle("-fx-background-color: " + BG_PANEL + ";");
@@ -556,18 +522,14 @@ public class MainApp {
         });
     }
 
-    // ══════════════════════════════════════════════════════════
-    // RELOAD ITEMS TỪ SERVER (realtime + sau đặt giá)
-    // ══════════════════════════════════════════════════════════
     private void reloadItemsFromServer(ObservableList<Item> data, TableView<Item> table) {
         new Thread(() -> {
             try {
                 ResponseMessage resp = client.sendRequest(CommandType.GET_ACTIVE_ITEMS, null);
                 if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
-                    // Parse list Item từ response
                     java.lang.reflect.Type listType =
-                            new com.google.gson.reflect.TypeToken<java.util.List<Item>>(){}.getType();
-                    java.util.List<Item> newItems = gson.fromJson(gson.toJson(resp.getData()), listType);
+                            new TypeToken<List<Item>>(){}.getType();
+                    List<Item> newItems = gson.fromJson(gson.toJson(resp.getData()), listType);
                     if (newItems != null) {
                         Platform.runLater(() -> {
                             data.setAll(newItems);
@@ -582,7 +544,6 @@ public class MainApp {
         }).start();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
     private String inputStyle() {
         return "-fx-background-color: " + BG_INPUT + ";"
                 + "-fx-border-color: " + BORDER + ";"

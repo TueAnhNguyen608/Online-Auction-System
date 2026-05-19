@@ -78,6 +78,12 @@ public class ClientHandler implements Runnable {
                     return handleUnsubscribe(request.getData());
                 case SET_AUTO_BID:
                     return handleSetAutoBid(request.getData());
+                // Huyền đã thêm: xử lý hủy auto-bid
+                case CANCEL_AUTO_BID:
+                    return handleCancelAutoBid(request.getData());
+                // Huyền đã thêm: lấy danh sách auto-bid của user
+                case GET_AUTO_BID_STATUS:
+                    return handleGetAutoBidStatus();
                 case LOGOUT:
                     return ResponseMessage.success("Đăng xuất thành công", null);
 
@@ -88,7 +94,9 @@ public class ClientHandler implements Runnable {
                     return handleChangePassword(request.getData());
                 case UPDATE_USER_INFO:
                     return handleUpdateUserInfo(request.getData());
-
+                // Huyền đã thêm
+                case UPDATE_PROFILE:
+                    return handleUpdateProfile(request.getData());
                 // =========================================================
                 // CODE BỔ SUNG CHO NHÓM 4 (Lịch sử & Thống kê)
                 // =========================================================
@@ -261,6 +269,18 @@ public class ClientHandler implements Runnable {
         return ResponseMessage.error("Cài đặt auto-bid thất bại");
     }
 
+    // Huyền đã thêm: handler hủy auto-bid
+    @SuppressWarnings("unchecked")
+    private ResponseMessage handleCancelAutoBid(Object data) throws SQLException {
+        Map<String, Object> map = (Map<String, Object>) data;
+        String itemId = (String) map.get("itemId");
+        boolean success = dbManager.cancelAutoBid(currentUserId, itemId);
+        if (success) {
+            return ResponseMessage.success("Đã hủy auto-bid thành công", null);
+        }
+        return ResponseMessage.error("Hủy auto-bid thất bại hoặc không tìm thấy");
+    }
+
     // =========================================================================
     // CÁC HÀM XỬ LÝ MỚI CHO NHÓM 2 & 4 (ĐÃ TRIỂN KHAI)
     // =========================================================================
@@ -293,6 +313,17 @@ public class ClientHandler implements Runnable {
         boolean ok = dbManager.updateUser(user);
         return ok ? ResponseMessage.success("Cập nhật thông tin thành công", null)
                 : ResponseMessage.error("Không thể cập nhật thông tin");
+    }
+    // Huyền đã thêm
+    @SuppressWarnings("unchecked")
+    private ResponseMessage handleUpdateProfile(Object data) throws SQLException {
+        Map<String, Object> map = (Map<String, Object>) data;
+        String email    = (String) map.get("email");
+        String fullName = (String) map.get("fullName");
+        String phone    = (String) map.get("phone");
+        boolean ok = dbManager.updateUserProfile(currentUserId, email, fullName, phone);
+        return ok ? ResponseMessage.success("Cập nhật thành công", null)
+                : ResponseMessage.error("Cập nhật thất bại");
     }
 
     private ResponseMessage handleGetMyBidHistory() throws SQLException {
@@ -330,5 +361,10 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    // Huyền đã thêm: handler lấy danh sách auto-bid
+    private ResponseMessage handleGetAutoBidStatus() throws SQLException {
+        List<Map<String, Object>> settings = dbManager.getAutoBidSettings(currentUserId);
+        return ResponseMessage.success("Lấy danh sách auto-bid thành công", settings);
     }
 }

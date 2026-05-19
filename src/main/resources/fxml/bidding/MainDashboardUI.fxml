@@ -17,14 +17,10 @@
 
 <BorderPane prefHeight="766.0" prefWidth="1158.0" styleClass="root-pane" stylesheets="@../../css/bidding_style.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.bidding.MainDashboardUI">
 
-    <!-- ═══════════════════════════════════════
-         NAVBAR
-         ═══════════════════════════════════════ -->
     <top>
         <HBox alignment="CENTER_LEFT" prefHeight="75.0" prefWidth="1131.0" styleClass="navbar">
             <padding><Insets bottom="0" left="24" right="32" top="0" /></padding>
 
-            <!-- Logo + Tên hệ thống -->
             <HBox alignment="CENTER_LEFT" prefHeight="65.0" prefWidth="949.0" spacing="14" HBox.hgrow="ALWAYS">
                 <ImageView fitHeight="106.0" fitWidth="71.0" preserveRatio="true">
                     <image><Image url="@../../icons/bua1.png" /></image>
@@ -32,50 +28,43 @@
                 <Label prefHeight="47.0" prefWidth="227.0" styleClass="nav-brand" text="HỆ THỐNG ĐẤU GIÁ" />
             </HBox>
 
-            <!-- [THÊM] Chuông thông báo + số đếm -->
             <HBox alignment="CENTER" spacing="4"
                   style="-fx-cursor: hand; -fx-padding: 0 16 0 0;"
                   onMouseClicked="#onNotification">
                 <Label text="🔔" style="-fx-font-size: 20px; -fx-text-fill: #F5C518;" />
-                <Label fx:id="lblNotifCount" text="(4)"
+                <Label fx:id="lblNotifCount" text=""
                        style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF;" />
             </HBox>
 
-            <!-- Avatar + Tên user + Chevron -->
-            <HBox alignment="CENTER_RIGHT" prefHeight="58.0" prefWidth="156.0" spacing="10">
+            <HBox fx:id="userMenuBox" alignment="CENTER_RIGHT" prefHeight="58.0" prefWidth="156.0" spacing="10" style="-fx-cursor: hand;">
                 <StackPane styleClass="nav-avatar-wrap">
                     <ImageView fitHeight="58.0" fitWidth="81.0" preserveRatio="true">
                         <image><Image url="@../../icons/user.png" /></image>
                     </ImageView>
                 </StackPane>
-                <Label fx:id="usernameLabel" styleClass="nav-user-text" text="Admin" />
+                <Label fx:id="usernameLabel" styleClass="nav-user-text" text="User" />
                 <Label styleClass="nav-chevron" text="∨" />
             </HBox>
         </HBox>
     </top>
+
     <bottom>
         <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="page-scroll" vbarPolicy="AS_NEEDED" BorderPane.alignment="CENTER">
             <VBox spacing="24" styleClass="page-wrap">
                 <padding><Insets bottom="40" left="44" right="44" top="36" /></padding>
 
-                <!-- ── WELCOME ─────────────────────────────── -->
                 <VBox prefHeight="51.0" prefWidth="1064.0" spacing="6">
-                    <Label fx:id="welcomeLabel" styleClass="lbl-welcome" text="Xin chào, Admin!" />
+                    <Label fx:id="welcomeLabel" styleClass="lbl-welcome" text="Xin chào, User!" />
                     <Label prefHeight="18.0" prefWidth="343.0" styleClass="lbl-welcome-sub" text="Chào mừng bạn đến với hệ thống đấu giá trực tuyến." />
                 </VBox>
 
-                <!-- ══════════════════════════════════════════
-                     SECTION: TRANG CHỦ
-                     ══════════════════════════════════════════ -->
                 <VBox prefHeight="343.0" prefWidth="1046.0" spacing="20" styleClass="section-box">
 
-                    <!-- Heading -->
                     <HBox alignment="CENTER_LEFT" prefHeight="35.0" prefWidth="1074.0" spacing="10">
                         <Label prefHeight="37.0" prefWidth="27.0" styleClass="section-icon" text="🏠" />
                         <Label styleClass="section-title" text="TRANG CHỦ" />
                     </HBox>
 
-                    <!-- 3 Feature cards -->
                     <GridPane hgap="18" prefHeight="350.0" prefWidth="977.0">
                         <columnConstraints>
                             <ColumnConstraints hgrow="ALWAYS" percentWidth="33.33" />
@@ -87,37 +76,41 @@
                         <VBox alignment="CENTER" prefHeight="336.0" prefWidth="318.0" spacing="16" styleClass="feat-card" GridPane.columnIndex="0">
                             <StackPane minHeight="89.0" prefHeight="89.0" prefWidth="100.0" styleClass="icon-circle, ic-blue">
                                 <ImageView fitHeight="79.0" fitWidth="73.0" pickOnBounds="true" preserveRatio="true">
-                                    <image>
-                                        <Image url="@../../icons/UI1.png" />
-                                    </image>
+                                    <image><Image url="@../../icons/UI1.png" /></image>
                                 </ImageView>
                             </StackPane>
                             <Label styleClass="feat-card-name" text="SẢN PHẨM" />
-                            <Label maxWidth="Infinity" prefHeight="35.0" prefWidth="274.0" styleClass="feat-card-desc" text="    Xem danh sách sản phẩm đang đấu giá&#10;&#10;" textOverrun="CLIP" wrapText="true">
-                                <font>
-                                    <Font size="13.0" />
-                                </font></Label>
+                            <!-- ĐÃ SỬA: bỏ dấu cách, thêm textAlignment CENTER, bỏ textOverrun -->
+                            <Label maxWidth="Infinity" prefHeight="35.0" prefWidth="274.0"
+                                   styleClass="feat-card-desc"
+                                   text="Xem danh sách sản phẩm đang đấu giá"
+                                   textAlignment="CENTER"
+                                   alignment="CENTER"
+                                   wrapText="true">
+                                <font><Font size="13.0" /></font>
+                            </Label>
                             <Button maxWidth="Infinity" onAction="#onSanPham" prefHeight="73.0" prefWidth="275.0" styleClass="feat-btn, feat-btn-blue" text="Xem danh sách  →">
-                                <font>
-                                    <Font size="18.0" />
-                                </font></Button>
+                                <font><Font size="18.0" /></font>
+                            </Button>
                         </VBox>
 
                         <!-- Card 2: ĐẤU GIÁ TỰ ĐỘNG -->
                         <VBox alignment="CENTER" spacing="16" styleClass="feat-card" GridPane.columnIndex="1">
                             <StackPane styleClass="icon-circle, ic-green">
                                 <ImageView fitHeight="68.0" fitWidth="74.0" pickOnBounds="true" preserveRatio="true">
-                                    <image>
-                                        <Image url="@../../icons/UI2.png" />
-                                    </image>
+                                    <image><Image url="@../../icons/UI2.png" /></image>
                                 </ImageView>
                             </StackPane>
                             <Label styleClass="feat-card-name" text="ĐẤU GIÁ TỰ ĐỘNG" />
-                            <Label maxWidth="Infinity" styleClass="feat-card-desc" text="       Thiết lập và quản lý đấu giá tự động" textAlignment="CENTER" wrapText="true" />
+                            <!-- ĐÃ SỬA: bỏ dấu cách -->
+                            <Label maxWidth="Infinity" styleClass="feat-card-desc"
+                                   text="Thiết lập và quản lý đấu giá tự động"
+                                   textAlignment="CENTER"
+                                   alignment="CENTER"
+                                   wrapText="true" />
                             <Button maxWidth="Infinity" onAction="#onAutoBid" prefHeight="67.0" prefWidth="333.0" styleClass="feat-btn, feat-btn-green" text="Thiết lập  →">
-                                <font>
-                                    <Font size="18.0" />
-                                </font></Button>
+                                <font><Font size="18.0" /></font>
+                            </Button>
                         </VBox>
 
                         <!-- Card 3: LỊCH SỬ ĐẤU GIÁ -->
@@ -126,35 +119,29 @@
                                 <Label prefHeight="67.0" prefWidth="71.0" styleClass="icon-emoji" text="  🕐" />
                             </StackPane>
                             <Label styleClass="feat-card-name" text="LỊCH SỬ ĐẤU GIÁ" />
-                            <Label maxWidth="Infinity" styleClass="feat-card-desc" text="   Xem lịch sử các phiên đấu giá đã diễn ra" textAlignment="CENTER" wrapText="true">
-                                <font>
-                                    <Font size="13.0" />
-                                </font></Label>
+                            <!-- ĐÃ SỬA: bỏ dấu cách -->
+                            <Label maxWidth="Infinity" styleClass="feat-card-desc"
+                                   text="Xem lịch sử các phiên đấu giá đã diễn ra"
+                                   textAlignment="CENTER"
+                                   alignment="CENTER"
+                                   wrapText="true">
+                                <font><Font size="13.0" /></font>
+                            </Label>
                             <Button maxWidth="Infinity" onAction="#onLichSu" prefHeight="67.0" prefWidth="174.0" styleClass="feat-btn, feat-btn-purple" text="Xem lịch sử  →">
-                                <font>
-                                    <Font size="18.0" />
-                                </font></Button>
+                                <font><Font size="18.0" /></font>
+                            </Button>
                         </VBox>
-                        <rowConstraints>
-                            <RowConstraints />
-                        </rowConstraints>
+
+                        <rowConstraints><RowConstraints /></rowConstraints>
                     </GridPane>
                 </VBox>
 
-                <!-- ══════════════════════════════════════════
-                     SECTION: TỔNG QUAN
-                     ══════════════════════════════════════════ -->
                 <VBox prefHeight="134.0" prefWidth="1054.0" spacing="16">
-
-                    <!-- Heading -->
                     <HBox alignment="CENTER_LEFT" prefHeight="0.0" prefWidth="1012.0" spacing="10" />
                     <Label prefHeight="25.0" prefWidth="123.0" styleClass="section-title" text="TỔNG QUAN">
-                        <graphic>
-                            <Label styleClass="section-icon" text="👑" />
-                        </graphic>
+                        <graphic><Label styleClass="section-icon" text="👑" /></graphic>
                     </Label>
 
-                    <!-- 4 Stat cards -->
                     <GridPane hgap="18" prefHeight="138.0" prefWidth="1017.0">
                         <columnConstraints>
                             <ColumnConstraints hgrow="ALWAYS" percentWidth="25" />
@@ -163,88 +150,55 @@
                             <ColumnConstraints hgrow="ALWAYS" percentWidth="25" />
                         </columnConstraints>
 
-                        <!-- Stat 1: Tổng sản phẩm -->
                         <HBox alignment="CENTER_LEFT" prefHeight="134.0" prefWidth="230.0" spacing="16" styleClass="stat-card" GridPane.columnIndex="0">
                             <StackPane styleClass="stat-circle, sc-blue">
                                 <ImageView fitHeight="38.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
-                                    <image>
-                                        <Image url="@../../icons/UI3.png" />
-                                    </image>
+                                    <image><Image url="@../../icons/UI3.png" /></image>
                                 </ImageView>
                             </StackPane>
                             <VBox spacing="4">
                                 <Label fx:id="statTotal" styleClass="stat-num" text="18" />
-                                <Label prefHeight="24.0" prefWidth="85.0" styleClass="stat-lbl" text="Tổng sản phẩm">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
-                                <Label fx:id="statTotalSub" prefHeight="46.0" prefWidth="114.0" styleClass="stat-sub-green" text="+12 sản phẩm mới">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
+                                <Label prefHeight="24.0" prefWidth="85.0" styleClass="stat-lbl" text="Tổng sản phẩm"><font><Font size="13.0" /></font></Label>
+                                <Label fx:id="statTotalSub" prefHeight="46.0" prefWidth="114.0" styleClass="stat-sub-green" text="+18 sản phẩm đang đấu giá"><font><Font size="13.0" /></font></Label>
                             </VBox>
                         </HBox>
 
-                        <!-- Stat 2: Phiên đấu giá -->
                         <HBox alignment="CENTER_LEFT" spacing="16" styleClass="stat-card" GridPane.columnIndex="1">
                             <StackPane styleClass="stat-circle, sc-green">
                                 <ImageView fitHeight="34.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
-                                    <image>
-                                        <Image url="@../../icons/UI4.png" />
-                                    </image>
+                                    <image><Image url="@../../icons/UI4.png" /></image>
                                 </ImageView>
                             </StackPane>
                             <VBox spacing="4">
                                 <Label fx:id="statSessions" styleClass="stat-num" text="18" />
-                                <Label prefHeight="23.0" prefWidth="113.0" styleClass="stat-lbl" text="Phiên đấu giá">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
-                                <Label fx:id="statSessionsSub" prefHeight="25.0" prefWidth="137.0" styleClass="stat-sub-green" text="Đang diễn ra: 5">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
+                                <Label prefHeight="23.0" prefWidth="113.0" styleClass="stat-lbl" text="Phiên đấu giá"><font><Font size="13.0" /></font></Label>
+                                <Label fx:id="statSessionsSub" prefHeight="25.0" prefWidth="137.0" styleClass="stat-sub-green" text="Đang diễn ra: 18"><font><Font size="13.0" /></font></Label>
                             </VBox>
                         </HBox>
 
-                        <!-- Stat 3: Tổng giá trị -->
                         <HBox alignment="CENTER_LEFT" spacing="16" styleClass="stat-card" GridPane.columnIndex="2">
                             <StackPane styleClass="stat-circle, sc-gold">
                                 <Label prefHeight="50.0" prefWidth="50.0" styleClass="stat-icon" text="   💲" />
                             </StackPane>
                             <VBox spacing="4">
-                                <Label fx:id="statValue" styleClass="stat-num-sm" text="256.500.000 đ" />
-                                <Label prefHeight="30.0" prefWidth="96.0" styleClass="stat-lbl" text="Tổng giá trị">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
-                                <Label prefHeight="25.0" prefWidth="106.0" styleClass="stat-muted" text="Giá trị sản phẩm">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
+                                <Label fx:id="statValue" styleClass="stat-num-sm" text="332.500.000 đ" />
+                                <Label prefHeight="30.0" prefWidth="96.0" styleClass="stat-lbl" text="Tổng giá trị"><font><Font size="13.0" /></font></Label>
+                                <Label prefHeight="25.0" prefWidth="106.0" styleClass="stat-muted" text="Giá trị sản phẩm"><font><Font size="13.0" /></font></Label>
                             </VBox>
                         </HBox>
 
-                        <!-- Stat 4: Sắp kết thúc -->
                         <HBox alignment="CENTER_LEFT" minHeight="94.0" prefHeight="167.0" prefWidth="241.0" spacing="16" styleClass="stat-card" GridPane.columnIndex="3">
                             <StackPane styleClass="stat-circle, sc-red">
                                 <Label prefHeight="47.0" prefWidth="42.0" styleClass="stat-icon" text="  ⏰" />
                             </StackPane>
                             <VBox spacing="4">
                                 <Label fx:id="statEnding" styleClass="stat-num" text="0" />
-                                <Label prefHeight="21.0" prefWidth="90.0" styleClass="stat-lbl" text="Sắp kết thúc">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
-                                <Label fx:id="statEndingSub" prefHeight="26.0" prefWidth="117.0" styleClass="stat-sub-red" text="Trong 24 giờ tới">
-                                    <font>
-                                        <Font size="13.0" />
-                                    </font></Label>
+                                <Label prefHeight="21.0" prefWidth="90.0" styleClass="stat-lbl" text="Sắp kết thúc"><font><Font size="13.0" /></font></Label>
+                                <Label fx:id="statEndingSub" prefHeight="26.0" prefWidth="117.0" styleClass="stat-sub-red" text="Không có phiên nào"><font><Font size="13.0" /></font></Label>
                             </VBox>
                         </HBox>
-                        <rowConstraints>
-                            <RowConstraints />
-                        </rowConstraints>
+
+                        <rowConstraints><RowConstraints /></rowConstraints>
                     </GridPane>
                 </VBox>
 

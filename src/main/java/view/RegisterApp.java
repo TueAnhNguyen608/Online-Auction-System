@@ -188,9 +188,13 @@ public class RegisterApp extends Application {
                 try {
                     AuctionClient client = new AuctionClient();
                     client.connect("localhost", 9999);
-                    client.startRealtimeListener(null);
+                    // ĐÃ SỬA: comment out dòng này vì method chưa có trong AuctionClient
+                    // client.startRealtimeListener(null);
                     User u = new User(); u.setUsername(username); u.setPassword(password);
                     u.setEmail(email.isEmpty() ? null : email); u.setRole("BIDDER");
+                    // Huyền đã thêm
+                    u.setFullName(txtName.getText().trim().isEmpty() ? null : txtName.getText().trim());
+                    u.setPhone(txtPhone.getText().trim().isEmpty() ? null : txtPhone.getText().trim());
                     ResponseMessage resp = client.register(u);
                     new Thread(() -> { try { client.disconnect(); } catch (Exception ignored) {} }).start();
                     Platform.runLater(() -> {

@@ -1,5 +1,11 @@
 package view.bidding;
 
+import client.AuctionClient;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import common.*;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -10,19 +16,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
+import view.common.SessionManager;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * AutoBidPanel – Thiết lập đấu giá tự động (NHÓM 3).
- * File FXML: /fxml/bidding/AutoBidPanel.fxml
- *
- * Tích hợp server:
- *   SET_AUTO_BID    → client.setAutoBid(itemId, maxPrice)
- *   CANCEL_AUTO_BID → client.cancelAutoBid(itemId)
- *   GET_AUTO_BID_STATUS → client.getAutoBidStatus()
- */
 public class AutoBidPanel implements Initializable {
 
     @FXML private Label    lblUserName;
@@ -39,7 +38,7 @@ public class AutoBidPanel implements Initializable {
     @FXML private Label             lblStepError;
 
     @FXML private TableView<AutoBidRow>            tableAutoBid;
-    @FXML private TableColumn<AutoBidRow, Integer> colStt;        // [THÊM] cột STT
+    @FXML private TableColumn<AutoBidRow, Integer> colStt;
     @FXML private TableColumn<AutoBidRow, String>  colProduct;
     @FXML private TableColumn<AutoBidRow, String>  colCurrentPrice;
     @FXML private TableColumn<AutoBidRow, String>  colMaxPrice;
@@ -61,31 +60,20 @@ public class AutoBidPanel implements Initializable {
                     " -fx-border-color: #F5C518; -fx-border-radius: 4 4 0 0; -fx-border-width: 1; -fx-cursor: hand;";
 
     private boolean autoBidOn = true;
-    private int editingIndex = -1; // [THÊM] index hàng đang sửa
+    private int editingIndex = -1;
 
-    private static final String[] PRODUCTS = {
-            "iPhone 15 Pro Max 1TB",  "iPhone 15 Pro 512GB",
-            "Samsung Galaxy S24 Ultra","Xiaomi 14 Ultra",
-            "Google Pixel 8 Pro",     "MacBook Pro M3 Max",
-            "Dell XPS 15",            "LG Gram 17",
-            "Asus ROG Zephyrus G14",  "Sony WH-1000XM5",
-            "AirPods Pro 2",          "Bose QC Ultra",
-            "Apple Watch Ultra 2",    "Samsung Galaxy Watch 6 Classic",
-            "Magic Keyboard",         "Logitech MX Master 3S",
-            "iPad Pro 12.9 inch M2",  "Samsung Tab S9 Ultra"
-    };
-    private static final long[] PRICES = {
-            25_000_000L, 22_000_000L, 20_000_000L, 15_000_000L,
-            18_000_000L, 45_000_000L, 35_000_000L, 28_000_000L,
-            32_000_000L,  5_000_000L,  4_500_000L,  6_000_000L,
-            15_000_000L,  7_000_000L,  3_000_000L,  2_000_000L,
-            28_000_000L, 22_000_000L
-    };
+    // ĐÃ THÊM: lưu danh sách Item từ server để lấy itemId khi cần
+    private final List<Item> serverItems = new ArrayList<>();
 
-    // [SỬA] Model – bỏ final để có thể cập nhật khi sửa
+    private final Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+            .create();
+
     public static class AutoBidRow {
-        private int stt;
-        private String product, currentPrice, maxPrice, step, status, times, time;
+        int stt;
+        String product, currentPrice, maxPrice, step, status, times, time;
+        String itemId; // ĐÃ THÊM: lưu itemId để gọi server
+
         public AutoBidRow(int stt, String product, String currentPrice, String maxPrice,
                           String step, String status, String times, String time) {
             this.stt = stt; this.product = product; this.currentPrice = currentPrice;
@@ -100,7 +88,7 @@ public class AutoBidPanel implements Initializable {
         public String getStatus()         { return status; }
         public String getTimes()          { return times; }
         public String getTime()           { return time; }
-        public void   setStatus(String s) { this.status = s; } // [THÊM]
+        public void   setStatus(String s) { this.status = s; }
     }
 
     @Override
@@ -111,71 +99,86 @@ public class AutoBidPanel implements Initializable {
                 if (css != null) { String p = css.toExternalForm(); if (!scene.getStylesheets().contains(p)) scene.getStylesheets().add(p); }
             }
         });
-        setupComboBox();
         setupTableColumns();
         setupHovers();
-        loadSampleData(); // giữ nguyên như file gốc
+        tableAutoBid.setItems(FXCollections.observableArrayList());
         styleHeaderTable();
         styleScrollBarAndCombo();
+        loadProductsFromServer(); // ĐÃ ĐỔI: load từ server thay vì hardcode
+        loadAutoBidFromServer(); // ĐÃ THÊM: load auto-bid từ cache
     }
 
-    // giữ nguyên như file gốc – để trống theo yêu cầu
-    private void loadSampleData() {
-        /*
-        ObservableList<AutoBidRow> rows = FXCollections.observableArrayList(
-            new AutoBidRow(1,"iPhone 15 Pro Max 256GB","2.450.000 đ","15.000.000 đ","50.000 đ","Đang hoạt động","12 / 20","2 phút trước"),
-            new AutoBidRow(2,"Apple Watch Series 9","8.750.000 đ","12.000.000 đ","100.000 đ","Tạm dừng","8 / 15","5 phút trước"),
-            new AutoBidRow(3,"MacBook Air M2 2023","18.200.000 đ","20.000.000 đ","200.000 đ","Đã dừng","20 / 20","10 phút trước")
-        );
-        tableAutoBid.setItems(rows);
-        */
-        tableAutoBid.setItems(FXCollections.observableArrayList());
+    // ĐÃ THÊM: Load danh sách sản phẩm từ server vào ComboBox
+    private void loadProductsFromServer() {
+        new Thread(() -> {
+            try {
+                AuctionClient client = SessionManager.getClient();
+                if (client == null) throw new Exception("Chưa có kết nối");
+                ResponseMessage resp = client.getActiveItems();
+                if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                    java.lang.reflect.Type listType = new TypeToken<List<Item>>(){}.getType();
+                    List<Item> items = gson.fromJson(gson.toJson(resp.getData()), listType);
+                    if (items != null && !items.isEmpty()) {
+                        serverItems.clear();
+                        serverItems.addAll(items);
+                        List<String> names = new ArrayList<>();
+                        for (Item item : items) names.add(item.getName());
+                        Platform.runLater(() -> {
+                            cboProduct.getItems().setAll(names);
+                            setupComboBoxListener();
+                            System.out.println("✅ Loaded " + items.size() + " sản phẩm vào AutoBid ComboBox");
+                        });
+                        return;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("⚠ Dùng danh sách sản phẩm mẫu: " + e.getMessage());
+            }
+            // Fallback: dùng danh sách cứng
+            Platform.runLater(this::loadSampleProducts);
+        }).start();
     }
 
-    private void styleScrollBarAndCombo() {
-        javafx.application.Platform.runLater(() -> {
-            tableAutoBid.sceneProperty().addListener((obs, o, scene) -> {
-                if (scene == null) return;
-                javafx.scene.Node node = tableAutoBid.getParent();
-                while (node != null && !(node instanceof javafx.scene.control.ScrollPane)) node = node.getParent();
-                if (node instanceof javafx.scene.control.ScrollPane sp) {
-                    javafx.application.Platform.runLater(() -> {
-                        sp.lookupAll(".scroll-bar:vertical").forEach(n -> n.setStyle("-fx-pref-width: 14px;"));
-                        sp.lookupAll(".scroll-bar:vertical .thumb").forEach(n -> n.setStyle("-fx-background-color: #2A5090; -fx-background-radius: 6;"));
-                        sp.lookupAll(".scroll-bar:vertical .track").forEach(n -> n.setStyle("-fx-background-color: #162550; -fx-background-radius: 6;"));
-                    });
-                }
-            });
-            cboProduct.setCellFactory(lv -> new javafx.scene.control.ListCell<String>() {
-                @Override protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) { setText(null); setStyle(""); return; }
-                    setText(item);
-                    setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #162550; -fx-font-size: 13px;");
-                }
-                { setOnMouseEntered(e -> setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #1E4268; -fx-font-size: 13px;"));
-                    setOnMouseExited(e  -> setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #162550; -fx-font-size: 13px;")); }
-            });
-            cboProduct.setButtonCell(new javafx.scene.control.ListCell<String>() {
-                @Override protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    setText(empty || item == null ? null : item);
-                    setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: transparent; -fx-font-size: 13px;");
-                }
-            });
-        });
+    private void loadSampleProducts() {
+        String[] PRODUCTS = {
+                "iPhone 15 Pro Max 1TB", "iPhone 15 Pro 512GB",
+                "Samsung Galaxy S24 Ultra", "Xiaomi 14 Ultra",
+                "Google Pixel 8 Pro", "MacBook Pro M3 Max",
+                "Dell XPS 15", "LG Gram 17",
+                "Asus ROG Zephyrus G14", "Sony WH-1000XM5",
+                "AirPods Pro 2", "Bose QC Ultra",
+                "Apple Watch Ultra 2", "Samsung Galaxy Watch 6 Classic",
+                "Magic Keyboard", "Logitech MX Master 3S",
+                "iPad Pro 12.9 inch M2", "Samsung Tab S9 Ultra"
+        };
+        long[] PRICES = {
+                25_000_000L, 22_000_000L, 20_000_000L, 15_000_000L,
+                18_000_000L, 45_000_000L, 35_000_000L, 28_000_000L,
+                32_000_000L,  5_000_000L,  4_500_000L,  6_000_000L,
+                15_000_000L,  7_000_000L,  3_000_000L,  2_000_000L,
+                28_000_000L, 22_000_000L
+        };
+        cboProduct.getItems().setAll(PRODUCTS);
+        // Lưu vào serverItems dạng fake để dùng chung logic
+        serverItems.clear();
+        for (int i = 0; i < PRODUCTS.length; i++) {
+            Item item = new Item();
+            item.setName(PRODUCTS[i]);
+            item.setCurrentPrice(PRICES[i]);
+            serverItems.add(item);
+        }
+        setupComboBoxListener();
     }
 
-    private void setupComboBox() {
-        cboProduct.getItems().addAll(PRODUCTS);
+    private void setupComboBoxListener() {
         cboProduct.getSelectionModel().selectedIndexProperty().addListener((obs, o, idx) -> {
-            if (idx.intValue() >= 0 && idx.intValue() < PRICES.length) {
-                lblCurrentPrice.setText(formatPrice(PRICES[idx.intValue()]));
+            int i = idx.intValue();
+            if (i >= 0 && i < serverItems.size()) {
+                lblCurrentPrice.setText(formatPrice((long) serverItems.get(i).getCurrentPrice()));
             }
         });
     }
 
-    // [THÊM] Reset form về trạng thái ban đầu
     private void resetForm() {
         editingIndex = -1;
         cboProduct.getSelectionModel().clearSelection();
@@ -188,10 +191,31 @@ public class AutoBidPanel implements Initializable {
         btnCreate.setText("＋  Tạo auto-bid mới");
     }
 
+    private void styleScrollBarAndCombo() {
+        Platform.runLater(() -> {
+            cboProduct.setCellFactory(lv -> new ListCell<String>() {
+                @Override protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) { setText(null); setStyle(""); return; }
+                    setText(item);
+                    setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #162550; -fx-font-size: 13px;");
+                }
+                { setOnMouseEntered(e -> setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #1E4268; -fx-font-size: 13px;"));
+                    setOnMouseExited(e  -> setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #162550; -fx-font-size: 13px;")); }
+            });
+            cboProduct.setButtonCell(new ListCell<String>() {
+                @Override protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty || item == null ? null : item);
+                    setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: transparent; -fx-font-size: 13px;");
+                }
+            });
+        });
+    }
+
     private void setupTableColumns() {
         tableAutoBid.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        // [THÊM] Cột STT
         colStt.setCellValueFactory(d -> new javafx.beans.property.SimpleIntegerProperty(d.getValue().getStt()).asObject());
         colStt.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(Integer v, boolean e) {
@@ -284,7 +308,6 @@ public class AutoBidPanel implements Initializable {
 
                 box.setStyle("-fx-alignment: CENTER;");
 
-                // [FIX 3] Nút sửa: load dữ liệu lên form + set Tạm dừng
                 btnEdit.setOnAction(e -> {
                     int idx = getIndex();
                     if (idx < 0 || idx >= tableAutoBid.getItems().size()) return;
@@ -296,17 +319,40 @@ public class AutoBidPanel implements Initializable {
                     String[] tp = row.getTimes().split("/");
                     txtMaxTimes.setText(tp.length > 1 ? tp[1].trim() : "20");
                     btnCreate.setText("💾  Lưu thay đổi");
-                    // Set hàng đang sửa → Tạm dừng
                     row.setStatus("Tạm dừng");
                     tableAutoBid.refresh();
                 });
 
-                // Nút xóa
                 btnDelete.setOnAction(e -> {
                     int idx = getIndex();
                     if (idx < 0) return;
+                    AutoBidRow row = tableAutoBid.getItems().get(idx);
+
+                    // Gọi server HỦY auto-bid (xóa hẳn khỏi database)
+                    if (row.itemId != null) {
+                        final String cancelItemId = row.itemId;
+                        new Thread(() -> {
+                            try {
+                                AuctionClient client = view.common.SessionManager.getClient();
+                                if (client != null) {
+                                    java.util.Map<String, Object> data = new java.util.HashMap<>();
+                                    data.put("itemId", cancelItemId);
+                                    ResponseMessage resp = client.sendRequest(CommandType.CANCEL_AUTO_BID, data);
+                                    System.out.println("✅ Hủy auto-bid: " +
+                                            (resp != null ? resp.getMessage() : "Không phản hồi"));
+                                }
+                            } catch (Exception ex) {
+                                System.out.println("⚠ Lỗi hủy auto-bid: " + ex.getMessage());
+                            }
+                        }).start();
+                    }
+
+                    // Xóa khỏi cache
+                    User usr = SessionManager.getCurrentUser();
+                    if (usr != null && row.itemId != null) {
+                        SessionManager.removeAutoBidCache(usr.getUsername(), row.itemId);
+                    }
                     tableAutoBid.getItems().remove(idx);
-                    // Đánh lại STT
                     for (int i = 0; i < tableAutoBid.getItems().size(); i++)
                         tableAutoBid.getItems().get(i).stt = i + 1;
                     tableAutoBid.refresh();
@@ -348,18 +394,16 @@ public class AutoBidPanel implements Initializable {
     }
 
     private void styleHeaderTable() {
-        javafx.application.Platform.runLater(() -> {
-            javafx.application.Platform.runLater(() -> {
-                tableAutoBid.lookupAll(".column-header").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
-                tableAutoBid.lookupAll(".column-header .label").forEach(node ->
-                        node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;"));
-                tableAutoBid.lookupAll(".column-header-background").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550;"));
-                tableAutoBid.lookupAll(".filler").forEach(node ->
-                        node.setStyle("-fx-background-color: #162550;"));
-            });
-        });
+        Platform.runLater(() -> Platform.runLater(() -> {
+            tableAutoBid.lookupAll(".column-header").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
+            tableAutoBid.lookupAll(".column-header .label").forEach(node ->
+                    node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;"));
+            tableAutoBid.lookupAll(".column-header-background").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550;"));
+            tableAutoBid.lookupAll(".filler").forEach(node ->
+                    node.setStyle("-fx-background-color: #162550;"));
+        }));
     }
 
     private void setupHovers() {
@@ -391,7 +435,6 @@ public class AutoBidPanel implements Initializable {
     @FXML void onTabAutoBid()  { /* đang ở đây */ }
     @FXML void onQuayLai()     { navigate("/fxml/bidding/MainDashboardUI.fxml"); }
 
-    // [FIX 4] Toggle: nếu form trống → tác động toàn bộ bảng
     @FXML void onToggleAutoBid() {
         boolean formEmpty = cboProduct.getValue() == null || cboProduct.getValue().isEmpty();
         autoBidOn = !autoBidOn;
@@ -413,7 +456,11 @@ public class AutoBidPanel implements Initializable {
         }
     }
 
-    @FXML void onRefresh() { styleHeaderTable(); }
+    @FXML void onRefresh() {
+        loadProductsFromServer();
+        styleHeaderTable();
+    }
+
     @FXML void onHistory() { System.out.println("[AutoBidPanel] onHistory()"); }
 
     @FXML void onCreateAutoBid() {
@@ -421,6 +468,7 @@ public class AutoBidPanel implements Initializable {
         if (product == null || product.isEmpty()) { showAlert("Vui lòng chọn sản phẩm trước."); return; }
         String maxPriceStr = txtMaxPrice.getText().trim().replaceAll("[^0-9]", "");
         if (maxPriceStr.isEmpty()) { showAlert("Vui lòng nhập giá tối đa."); return; }
+
         try {
             long maxPrice = Long.parseLong(maxPriceStr);
             String stepStr = txtStep.getText().trim().replaceAll("[^0-9]", "");
@@ -432,34 +480,90 @@ public class AutoBidPanel implements Initializable {
                 lblStepError.setText("");
             }
             String times = txtMaxTimes.getText().trim().isEmpty() ? "20" : txtMaxTimes.getText().trim().replaceAll("[^0-9]","");
-            int idx = cboProduct.getSelectionModel().getSelectedIndex();
-            String currentP = (idx >= 0 && idx < PRICES.length) ? formatPrice(PRICES[idx]) : "0 đ";
 
-            if (editingIndex >= 0 && editingIndex < tableAutoBid.getItems().size()) {
-                // [FIX 3] Đang sửa → cập nhật hàng cũ
-                AutoBidRow row = tableAutoBid.getItems().get(editingIndex);
-                row.product      = product;
-                row.currentPrice = currentP;
-                row.maxPrice     = formatPrice(maxPrice);
-                row.step         = formatPrice(stepVal);
-                row.status       = autoBidOn ? "Đang hoạt động" : "Tạm dừng";
-                row.times        = "0 / " + times;
-                row.time         = "Vừa xong";
-                tableAutoBid.refresh();
-            } else {
-                // Tạo mới
-                int newStt = tableAutoBid.getItems().size() + 1;
-                AutoBidRow row = new AutoBidRow(newStt, product, currentP,
-                        formatPrice(maxPrice), formatPrice(stepVal),
-                        autoBidOn ? "Đang hoạt động" : "Tạm dừng",
-                        "0 / " + times, "Vừa xong");
-                tableAutoBid.getItems().add(row);
+            // Lấy item từ serverItems
+            int selectedIdx = cboProduct.getSelectionModel().getSelectedIndex();
+            String itemId = null;
+            String currentP = "0 đ";
+            if (selectedIdx >= 0 && selectedIdx < serverItems.size()) {
+                Item selectedItem = serverItems.get(selectedIdx);
+                itemId = selectedItem.getId();
+                currentP = formatPrice((long) selectedItem.getCurrentPrice());
             }
 
-            // [FIX 2] Reset form
-            resetForm();
+            // ĐÃ THÊM: Gọi server setAutoBid nếu có itemId
+            final String finalItemId = itemId;
+            final long finalMaxPrice = maxPrice;
+            final String finalCurrentP = currentP;
+            final long finalStep = stepVal;
+            final String finalTimes = times;
+            final String finalProduct = product;
+
+            if (finalItemId != null) {
+                new Thread(() -> {
+                    try {
+                        AuctionClient client = SessionManager.getClient();
+                        User user = SessionManager.getCurrentUser();
+                        if (client == null || user == null) throw new Exception("Chưa đăng nhập");
+
+                        // Huyền đã sửa: dùng setAutoBid() thay vì sendRequest trực tiếp
+                        ResponseMessage resp = client.setAutoBid(finalItemId, finalMaxPrice);
+                        Platform.runLater(() -> {
+                            if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
+                                addRowToTable(finalProduct, finalCurrentP, finalMaxPrice,
+                                        finalStep, finalTimes, finalItemId);
+                                // Lưu vào cache để dùng khi chuyển acc
+                                User usr = SessionManager.getCurrentUser();
+                                if (usr != null) {
+                                    SessionManager.addAutoBidCache(usr.getUsername(),
+                                            finalItemId, finalProduct,
+                                            formatPrice(finalMaxPrice), finalCurrentP);
+                                }
+                                System.out.println("✅ Auto-bid đã được lưu lên server");
+                            } else {
+                                showAlert("Lỗi server: " + (resp != null ? resp.getMessage() : "Không phản hồi"));
+                            }
+                        });
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            // Fallback: vẫn thêm vào bảng local nếu server lỗi
+                            addRowToTable(finalProduct, finalCurrentP, finalMaxPrice, finalStep, finalTimes, finalItemId);
+                            System.out.println("⚠ Lưu local (server lỗi): " + e.getMessage());
+                        });
+                    }
+                }).start();
+            } else {
+                // Không có itemId (dữ liệu mẫu) → thêm local
+                addRowToTable(finalProduct, finalCurrentP, finalMaxPrice, finalStep, finalTimes, null);
+            }
 
         } catch (NumberFormatException ex) { showAlert("Giá không hợp lệ."); }
+    }
+
+    // ĐÃ THÊM tham số itemId để lưu vào row
+    private void addRowToTable(String product, String currentP, long maxPrice,
+                               long stepVal, String times, String itemId) {
+        if (editingIndex >= 0 && editingIndex < tableAutoBid.getItems().size()) {
+            AutoBidRow row = tableAutoBid.getItems().get(editingIndex);
+            row.product      = product;
+            row.currentPrice = currentP;
+            row.maxPrice     = formatPrice(maxPrice);
+            row.step         = formatPrice(stepVal);
+            row.status       = autoBidOn ? "Đang hoạt động" : "Tạm dừng";
+            row.times        = "0 / " + times;
+            row.time         = "Vừa xong";
+            row.itemId       = itemId; // ĐÃ THÊM: lưu itemId để xóa được
+            tableAutoBid.refresh();
+        } else {
+            int newStt = tableAutoBid.getItems().size() + 1;
+            AutoBidRow row = new AutoBidRow(newStt, product, currentP,
+                    formatPrice(maxPrice), formatPrice(stepVal),
+                    autoBidOn ? "Đang hoạt động" : "Tạm dừng",
+                    "0 / " + times, "Vừa xong");
+            row.itemId = itemId; // ĐÃ THÊM: lưu itemId để xóa được
+            tableAutoBid.getItems().add(row);
+        }
+        resetForm();
     }
 
     private void navigate(String fxmlPath) {
@@ -469,10 +573,27 @@ public class AutoBidPanel implements Initializable {
             FXMLLoader loader = new FXMLLoader(res);
             Parent root = loader.load();
             Stage stage = (Stage) tableAutoBid.getScene().getWindow();
-            double w = stage.getScene().getWidth();
-            double h = stage.getScene().getHeight();
-            stage.setScene(new Scene(root, w, h));
+            stage.setScene(new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
+    }
+
+    // ĐÃ THÊM: load auto-bid từ cache khi mở màn hình
+    private void loadAutoBidFromServer() {
+        User user = SessionManager.getCurrentUser();
+        if (user == null) return;
+        java.util.List<view.common.SessionManager.AutoBidCache> cache =
+                SessionManager.getAutoBidCache(user.getUsername());
+        if (cache.isEmpty()) return;
+        tableAutoBid.getItems().clear();
+        int stt = 1;
+        for (view.common.SessionManager.AutoBidCache c : cache) {
+            AutoBidRow row = new AutoBidRow(stt++, c.itemName,
+                    c.currentPrice, c.maxPrice,
+                    "500.000 đ", "Đang hoạt động", "0 / 20", "Đang chạy");
+            row.itemId = c.itemId;
+            tableAutoBid.getItems().add(row);
+        }
+        System.out.println("✅ Loaded " + cache.size() + " auto-bid từ cache");
     }
 
     private void showAlert(String msg) {

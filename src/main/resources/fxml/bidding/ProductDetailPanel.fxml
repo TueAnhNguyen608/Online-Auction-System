@@ -39,7 +39,7 @@
                     <ImageView fitHeight="24.0" fitWidth="26.0" pickOnBounds="true" preserveRatio="true">
                         <image><Image url="@../../icons/user.png" /></image>
                     </ImageView>
-                    <Label fx:id="lblUserName" style="-fx-text-fill: #FFFFFF; -fx-font-size: 13px; -fx-font-weight: bold;" text="Admin" />
+                    <Label fx:id="lblUserName" style="-fx-text-fill: #FFFFFF; -fx-font-size: 13px; -fx-font-weight: bold;" text="User" />
                     <Label style="-fx-text-fill: #A0C4E8; -fx-font-size: 11px;" text="▾" />
                 </HBox>
             </HBox>

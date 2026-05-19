@@ -99,19 +99,23 @@ public class DatabaseManager {
             user.setEmail(rs.getString("email"));
             user.setRole(rs.getString("role"));
             user.setBalance(rs.getDouble("balance"));
+            user.setFullName(rs.getString("full_name"));  // Huyền đã thêm
+            user.setPhone(rs.getString("phone"));          // Huyền đã thêm
             return user;
         }
         throw new AuthenticationException("Sai tên đăng nhập hoặc mật khẩu", username);
     }
 
     public boolean register(User user) throws SQLException {
-        String sql = "INSERT INTO users(id, username, password, email, role, balance) VALUES(?,?,?,?,?,0)";
+        String sql = "INSERT INTO users(id, username, password, email, role, balance,full_name, phone) VALUES(?,?,?,?,?,0)";
         PreparedStatement stmt = conn.prepareStatement(sql);
         stmt.setString(1, user.getId());
         stmt.setString(2, user.getUsername());
         stmt.setString(3, user.getPassword());
         stmt.setString(4, user.getEmail());
         stmt.setString(5, user.getRole());
+        stmt.setString(6, user.getFullName());  // Huyền đã thêm
+        stmt.setString(7, user.getPhone());      // Huyền đã thêm
         return stmt.executeUpdate() > 0;
     }
 
@@ -410,6 +414,33 @@ public class DatabaseManager {
         stmt.setDouble(4, maxAmount);
         return stmt.executeUpdate() > 0;
     }
+    // ĐÃ THÊM: Hủy auto-bid - xóa hẳn khỏi database
+    public boolean cancelAutoBid(String userId, String itemId) throws SQLException {
+        String sql = "DELETE FROM auto_bid_settings WHERE user_id=? AND item_id=?";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        stmt.setString(1, userId);
+        stmt.setString(2, itemId);
+        return stmt.executeUpdate() > 0;
+    }
+    // Huyền đã thêm: lấy danh sách auto-bid của user
+    public List<Map<String, Object>> getAutoBidSettings(String userId) throws SQLException {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String sql = "SELECT a.item_id, a.max_amount, i.name, i.current_price " +
+                "FROM auto_bid_settings a JOIN items i ON a.item_id = i.id " +
+                "WHERE a.user_id = ?";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        stmt.setString(1, userId);
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("itemId", rs.getString("item_id"));
+            row.put("itemName", rs.getString("name"));
+            row.put("maxAmount", rs.getDouble("max_amount"));
+            row.put("currentPrice", rs.getDouble("current_price"));
+            result.add(row);
+        }
+        return result;
+    }
 
     // ========== STATISTICS METHODS ==========
 
@@ -539,6 +570,18 @@ public class DatabaseManager {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, user.getEmail());
             stmt.setString(2, user.getId());
+            return stmt.executeUpdate() > 0;
+        }
+    }
+    // Huyền đã thêm: cập nhật full_name và phone
+    public boolean updateUserProfile(String userId, String email,
+                                     String fullName, String phone) throws SQLException {
+        String sql = "UPDATE users SET email=?, full_name=?, phone=? WHERE id=?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            stmt.setString(2, fullName);
+            stmt.setString(3, phone);
+            stmt.setString(4, userId);
             return stmt.executeUpdate() > 0;
         }
     }

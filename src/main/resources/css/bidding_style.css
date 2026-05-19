@@ -388,7 +388,7 @@
 .tab-active-style {
     -fx-background-color: #f0a500;
     -fx-text-fill:        #0c1535;
-
+}
 
 
 
@@ -413,7 +413,7 @@
 }
 
 .root-pane {
-    -fx-background-color: /*#071525;*/#0c1535;
+    -fx-background-color: #0c1535;
 }
 /* ─── Top Wrapper ────────────────────────────────────────────── */
 .top-wrapper {

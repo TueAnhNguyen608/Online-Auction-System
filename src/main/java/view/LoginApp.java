@@ -11,7 +11,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -21,6 +20,8 @@ import javafx.stage.Stage;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import view.bidding.MainDashboardUI;
+import view.common.SessionManager;
 
 public class LoginApp extends Application {
 
@@ -30,8 +31,6 @@ public class LoginApp extends Application {
     private static final String BG_CARD = "#11153a";
     private static final String BG_IN   = "#1a1f45";
     private static final String BORDER  = "#2d3270";
-    private static final String PURPLE  = "#2563eb";
-    private static final String GOLD    = "#f59e0b";
     private static final String TEXT    = "#f0f4ff";
     private static final String MUTED   = "#8899bb";
     private static final String LABEL   = "#c4cfe8";
@@ -47,26 +46,22 @@ public class LoginApp extends Application {
         root.setPrefSize(900, 580);
         root.setStyle("-fx-background-color:" + BG + ";");
 
-        // ── TRÁI ─────────────────────────────────────────────────
         VBox left = new VBox(0);
         left.setPrefWidth(420);
         left.setStyle("-fx-background-color: linear-gradient(to bottom, #0c1030, #16103a);"
                 + "-fx-border-color:" + BORDER + ";-fx-border-width:0 1 0 0;");
 
-        // Logo
         HBox logo = buildLogo();
         logo.setPadding(new Insets(22, 20, 18, 22));
         logo.setStyle("-fx-border-color:transparent transparent " + BORDER + " transparent;"
                 + "-fx-border-width:0 0 1 0;");
 
-        // Ảnh búa + text
         VBox imgArea = new VBox(18);
         imgArea.setAlignment(Pos.CENTER);
         imgArea.setPadding(new Insets(30, 20, 20, 20));
         VBox.setVgrow(imgArea, Priority.ALWAYS);
 
         ImageView gavelImg = loadImage("/images/gavel.png", 300, 280);
-        // PNG đã cắt phông, hiển thị trực tiếp
 
         Label t1 = new Label("Chào mừng trở lại!");
         t1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
@@ -83,7 +78,6 @@ public class LoginApp extends Application {
 
         left.getChildren().addAll(logo, imgArea);
 
-        // ── PHẢI – form ───────────────────────────────────────────
         VBox right = new VBox();
         right.setAlignment(Pos.CENTER);
         right.setPadding(new Insets(0, 40, 0, 24));
@@ -106,14 +100,12 @@ public class LoginApp extends Application {
         sub.setTextFill(Color.web(MUTED));
         VBox.setMargin(sub, new Insets(4, 0, 26, 0));
 
-        // Username
         Label lUser = fl("Tên đăng nhập");
         TextField txtUser = new TextField();
         txtUser.setPromptText("Nhập tên đăng nhập");
         HBox userBox = inputBox("👤", txtUser, null);
         VBox.setMargin(userBox, new Insets(6, 0, 16, 0));
 
-        // Password
         Label lPass = fl("Mật khẩu");
         PasswordField txtPass = new PasswordField();
         txtPass.setPromptText("Nhập mật khẩu");
@@ -146,13 +138,11 @@ public class LoginApp extends Application {
             eye.setText(shown[0] ? "🙈" : "👁");
         });
 
-        // Ghi nhớ
         CheckBox chk = new CheckBox("Ghi nhớ đăng nhập");
         chk.setTextFill(Color.web(MUTED)); chk.setFont(Font.font("Segoe UI", 12));
         HBox remRow = new HBox(chk); remRow.setAlignment(Pos.CENTER_LEFT);
         VBox.setMargin(remRow, new Insets(0, 0, 22, 0));
 
-        // Nút đăng nhập
         Button btnLogin = new Button("Đăng nhập");
         btnLogin.setMaxWidth(Double.MAX_VALUE);
         btnLogin.setPrefHeight(48);
@@ -197,31 +187,129 @@ public class LoginApp extends Application {
                 try {
                     AuctionClient client = new AuctionClient();
                     client.connect("localhost", 9999);
-                    client.startRealtimeListener(null);
                     ResponseMessage resp = client.login(username, password);
                     Platform.runLater(() -> {
                         if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
                             Object data = resp.getData();
                             User user = null;
                             if (data instanceof User) user = (User) data;
-                            else if (data instanceof Map) user = gson.fromJson(gson.toJson(data), User.class);
-                            new Thread(() -> { try { client.disconnect(); } catch (Exception ignored) {} }).start();
-                            if (user == null) { lblErr.setText("Lỗi dữ liệu user"); btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false); return; }
-                            new MainApp().showWindow(user.getUsername(), user.getRole());
-                            stage.close();
+                            else if (data instanceof java.util.Map)
+                                user = gson.fromJson(gson.toJson(data), User.class);
+                            if (user == null) {
+                                lblErr.setText("Lỗi dữ liệu user");
+                                btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false); return;
+                            }
+
+                            // Lưu password để dùng khi chuyển tài khoản
+                            user.setPassword(password);
+
+                            // Bật lắng nghe thông báo realtime
+                            view.notification.RealTimeAlertPanel.startListening();
+
+                            final User finalUser = user;
+                            final AuctionClient finalClient = client;
+
+                            // Kiểm tra xem acc đã lưu và còn password hợp lệ không
+                            boolean hasSavedPassword = SessionManager.getSavedAccounts().stream()
+                                    .anyMatch(u -> u.getUsername().equals(finalUser.getUsername())
+                                            && u.getPassword() != null);
+
+                            if (hasSavedPassword) {
+                                // Acc đã lưu và password còn hợp lệ → cập nhật và vào luôn
+                                SessionManager.saveAccount(finalUser);
+                                SessionManager.setCurrentUser(finalUser);
+                                SessionManager.setClient(finalClient);
+                                MainDashboardUI.show(stage, finalUser.getUsername());
+                            } else {
+                                // Chưa lưu hoặc password bị xóa → hỏi lại
+                                showSaveAccountDialog(finalUser.getUsername(), () -> {
+                                    // Nhấn "Có" → lưu password
+                                    SessionManager.saveAccount(finalUser);
+                                    SessionManager.setCurrentUser(finalUser);
+                                    SessionManager.setClient(finalClient);
+                                    MainDashboardUI.show(stage, finalUser.getUsername());
+                                }, () -> {
+                                    // Nhấn "Không" → không lưu password
+                                    finalUser.setPassword(null);
+                                    SessionManager.clearPassword(finalUser.getUsername());
+                                    SessionManager.setCurrentUser(finalUser);
+                                    SessionManager.setClient(finalClient);
+                                    MainDashboardUI.show(stage, finalUser.getUsername());
+                                });
+                            }
+
                         } else {
-                            new Thread(() -> { try { client.disconnect(); } catch (Exception ignored) {} }).start();
+                            try { client.disconnect(); } catch (Exception ignored) {}
                             lblErr.setText("✕ " + (resp != null ? resp.getMessage() : "Đăng nhập thất bại"));
                             btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false);
                         }
                     });
                 } catch (Exception ex) {
-                    Platform.runLater(() -> { lblErr.setText("✕ Lỗi kết nối: " + ex.getMessage()); btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false); });
+                    Platform.runLater(() -> {
+                        lblErr.setText("✕ Lỗi kết nối: " + ex.getMessage());
+                        btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false);
+                    });
                 }
             }).start();
         });
 
-        reg.setOnMouseClicked(e -> { try { new RegisterApp().start(new Stage()); stage.close(); } catch (Exception ex) { ex.printStackTrace(); } });
+        reg.setOnMouseClicked(e -> {
+            try { new RegisterApp().start(new Stage()); stage.close(); }
+            catch (Exception ex) { ex.printStackTrace(); }
+        });
+    }
+
+    // ── Dialog hỏi lưu tài khoản ─────────────────────────────────
+    private void showSaveAccountDialog(String username, Runnable onYes, Runnable onNo) {
+        javafx.stage.Stage dialog = new javafx.stage.Stage();
+        dialog.setTitle("Lưu tài khoản");
+        dialog.setResizable(false);
+
+        VBox root = new VBox(16);
+        root.setPadding(new Insets(28, 28, 24, 28));
+        root.setStyle("-fx-background-color: #11153a;");
+        root.setAlignment(Pos.CENTER);
+        root.setPrefWidth(360);
+
+        Label lblIcon = new Label("💾");
+        lblIcon.setFont(Font.font(36));
+
+        Label lblTitle = new Label("Lưu tài khoản đăng nhập?");
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        lblTitle.setTextFill(Color.web("#f0f4ff"));
+        lblTitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+        Label lblDesc = new Label("Bạn có muốn lưu tài khoản \"" + username + "\"\nđể chuyển đổi nhanh không cần nhập lại?");
+        lblDesc.setFont(Font.font("Segoe UI", 13));
+        lblDesc.setTextFill(Color.web("#8899bb"));
+        lblDesc.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        lblDesc.setWrapText(true);
+
+        HBox btnRow = new HBox(12);
+        btnRow.setAlignment(Pos.CENTER);
+
+        Button btnNo = new Button("Không");
+        btnNo.setPrefWidth(120); btnNo.setPrefHeight(40);
+        btnNo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        btnNo.setStyle("-fx-background-color: #1a2336; -fx-text-fill: #c4cfe8;" +
+                " -fx-background-radius: 8; -fx-border-color: #2d3270;" +
+                " -fx-border-radius: 8; -fx-cursor: hand;");
+        btnNo.setOnAction(e -> { dialog.close(); onNo.run(); });
+
+        Button btnYes = new Button("Có");
+        btnYes.setPrefWidth(120); btnYes.setPrefHeight(40);
+        btnYes.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        btnYes.setStyle("-fx-background-color: linear-gradient(to right,#2563eb,#1d4ed8);" +
+                " -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
+        btnYes.setOnAction(e -> { dialog.close(); onYes.run(); });
+
+        btnRow.getChildren().addAll(btnNo, btnYes);
+        root.getChildren().addAll(lblIcon, lblTitle, lblDesc, btnRow);
+
+        Scene scene = new Scene(root);
+        scene.setFill(Color.web("#11153a"));
+        dialog.setScene(scene);
+        dialog.show();
     }
 
     // ── Shared helpers ────────────────────────────────────────────
