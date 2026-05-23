@@ -2,15 +2,21 @@ package client;
 
 import java.io.*;
 import java.net.*;
+import java.time.LocalDateTime;
 import java.util.function.Consumer;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import common.*;
 
 public class AuctionClient {
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private Gson gson = new Gson();
+
+    // ✅ ĐÃ FIX: đăng ký LocalDateTimeAdapter để serialize LocalDateTime đúng
+    private Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+            .create();
 
     public void connect(String host, int port) throws IOException {
         socket = new Socket(host, port);
@@ -88,6 +94,7 @@ public class AuctionClient {
         // Placeholder – server chưa có lệnh unsubscribe
         System.out.println("unsubscribeItem: " + itemId);
     }
+
     public ResponseMessage setAutoBid(String itemId, double maxAmount) throws IOException {
         java.util.Map<String, Object> data = new java.util.HashMap<>();
         data.put("itemId", itemId);

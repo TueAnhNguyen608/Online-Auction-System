@@ -62,7 +62,7 @@ public class ProductDetailPanel implements Initializable {
     private long currentPrice     = 24_500_000L;
     private long minStep          = 500_000L;
     private Timeline countdownTimer;
-    private String itemId; // ĐÃ THÊM: lưu itemId để gọi server
+    private String itemId;
     private String currentUsername = "Bạn";
 
     private final Gson gson = new GsonBuilder()
@@ -82,8 +82,8 @@ public class ProductDetailPanel implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        if (lblUserName != null && view.common.SessionManager.getCurrentUser() != null) {
-            lblUserName.setText(view.common.SessionManager.getCurrentUser().getUsername());
+        if (lblUserName != null && SessionManager.getCurrentUser() != null) {
+            lblUserName.setText(SessionManager.getCurrentUser().getUsername());
         }
         tableBidHistory.sceneProperty().addListener((obs, o, scene) -> {
             if (scene != null) {
@@ -91,7 +91,6 @@ public class ProductDetailPanel implements Initializable {
                 if (css != null) { String p = css.toExternalForm(); if (!scene.getStylesheets().contains(p)) scene.getStylesheets().add(p); }
             }
         });
-        // Lấy tên user từ SessionManager
         if (SessionManager.getCurrentUser() != null) {
             currentUsername = SessionManager.getCurrentUser().getUsername();
         }
@@ -103,13 +102,11 @@ public class ProductDetailPanel implements Initializable {
         styleHeaderTable();
     }
 
-    // ĐÃ THÊM: setter để ProductListPanel truyền itemId vào
     public void setItemId(String id) {
         this.itemId = id;
-        loadBidHistoryFromServer(); // load lịch sử thật từ server
+        loadBidHistoryFromServer();
     }
 
-    // ĐÃ THÊM: load lịch sử đấu giá từ server
     private void loadBidHistoryFromServer() {
         if (itemId == null) return;
         new Thread(() -> {
@@ -162,14 +159,138 @@ public class ProductDetailPanel implements Initializable {
         lblBidWarning.setStyle("-fx-text-fill: #F5C518; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
         tableBidHistory.setItems(FXCollections.observableArrayList());
 
-        try {
-            java.net.URL imgUrl = getClass().getResource(imagePath);
-            if (imgUrl == null) imgUrl = getClass().getResource("/icons/sp1.png");
-            if (imgUrl != null) imgProduct.setImage(new javafx.scene.image.Image(imgUrl.toExternalForm()));
-        } catch (Exception e) {
-            System.out.println("[ProductDetailPanel] Không load ảnh: " + imagePath);
-        }
+        // ✅ Load ảnh: thử URL từ tên sản phẩm trước, fallback về classpath/placeholder
+        loadProductImage(name, imagePath);
+
         startCountdown();
+    }
+
+    // ✅ Load ảnh thông minh theo tên sản phẩm
+    private void loadProductImage(String productName, String fallbackPath) {
+        String imageUrl = getProductImageUrl(productName);
+        new Thread(() -> {
+            try {
+                javafx.scene.image.Image img = null;
+
+                // Thử load từ URL internet trước
+                if (imageUrl != null) {
+                    try {
+                        img = new javafx.scene.image.Image(imageUrl, 400, 300, true, true, true);
+                        if (img.isError()) img = null;
+                    } catch (Exception ignored) {}
+                }
+
+                // Thử load từ classpath
+                if (img == null && fallbackPath != null) {
+                    try {
+                        java.net.URL imgUrl = getClass().getResource(fallbackPath);
+                        if (imgUrl == null) imgUrl = getClass().getResource("/icons/sp1.png");
+                        if (imgUrl != null) {
+                            img = new javafx.scene.image.Image(imgUrl.toExternalForm());
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                final javafx.scene.image.Image finalImg = img;
+                Platform.runLater(() -> {
+                    if (finalImg != null) {
+                        imgProduct.setImage(finalImg);
+                    }
+                });
+            } catch (Exception e) {
+                System.out.println("Không load được ảnh: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // ✅ Map tên sản phẩm → URL ảnh chính xác
+    private String getProductImageUrl(String name) {
+        if (name == null) return null;
+        String l = name.toLowerCase();
+
+        // iPhone
+        if (l.contains("iphone 15 pro max"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-15-pro-max-black-titanium-select?wid=470&hei=556&fmt=png-alpha";
+        if (l.contains("iphone 15 pro"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-15-pro-black-titanium-select?wid=470&hei=556&fmt=png-alpha";
+        if (l.contains("iphone"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-15-black-select-202309?wid=470&hei=556&fmt=png-alpha";
+
+        // Samsung
+        if (l.contains("samsung galaxy s24 ultra"))
+            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2401/gallery/levant-galaxy-s24-ultra-s928-sm-s928bzageub-thumb-539573242";
+        if (l.contains("samsung galaxy s24"))
+            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2401/gallery/levant-galaxy-s24-s921-sm-s921bzadeub-thumb-539571680";
+        if (l.contains("samsung tab s9 ultra"))
+            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2307/gallery/levant-galaxy-tab-s9-ultra-x910-sm-x910nzaaxfe-537263997";
+        if (l.contains("samsung"))
+            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2401/gallery/levant-galaxy-s24-s921-sm-s921bzadeub-thumb-539571680";
+
+        // MacBook
+        if (l.contains("macbook pro m3 max") || l.contains("macbook pro"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/mbp14-m3-pro-max-spacegray-select-202310?wid=452&hei=420&fmt=jpeg&qlt=95";
+        if (l.contains("macbook"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/mba13-m3-midnight-select-202402?wid=452&hei=420&fmt=jpeg&qlt=95";
+
+        // Dell XPS
+        if (l.contains("dell xps"))
+            return "https://i.dell.com/sites/csimages/App-Merchandizing_Images/all/xps-15-9530-pdp-module1.jpg";
+
+        // Asus ROG
+        if (l.contains("asus rog") || l.contains("rog zephyrus"))
+            return "https://dlcdnwebimgs.asus.com/gain/F1F41893-CC63-418E-9F96-F6A31EC7A38F/w717/h525";
+
+        // LG Gram
+        if (l.contains("lg gram"))
+            return "https://www.lg.com/us/images/laptops/md07003334/gallery/medium01.jpg";
+
+        // iPad
+        if (l.contains("ipad pro"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/ipad-pro-13-select-wifi-spacegray-202405?wid=470&hei=556&fmt=png-alpha";
+        if (l.contains("ipad"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/ipad-10th-gen-blue-select-wifi-202210?wid=470&hei=556&fmt=png-alpha";
+
+        // Sony WH-1000XM5
+        if (l.contains("sony wh") || l.contains("wh-1000"))
+            return "https://www.sony.com/image/5d02da5df552836db894cead401a464b?fmt=png-alpha&wid=440";
+
+        // AirPods Pro
+        if (l.contains("airpods pro"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MQD83?wid=532&hei=582&fmt=png-alpha";
+        if (l.contains("airpods"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MQHQ3?wid=532&hei=582&fmt=png-alpha";
+
+        // Bose QC
+        if (l.contains("bose qc") || l.contains("bose"))
+            return "https://assets.bose.com/content/dam/Bose_DAM/Web/consumer_electronics/global/products/headphones/quietcomfort_ultra_headphones/product_silo_images/QuietComfort_Ultra_Headphones_Black_EC_hero.png/jcr:content/renditions/cq5dam.web.600.600.png";
+
+        // Apple Watch
+        if (l.contains("apple watch ultra"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/watch-ultra2-49-lead-titanium-natural-titanium-band-S?wid=470&hei=556&fmt=png-alpha";
+        if (l.contains("apple watch"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/watch-s9-45-alum-midnight-sport-band-midnight-s-M-202309?wid=470&hei=556&fmt=png-alpha";
+
+        // Samsung Galaxy Watch
+        if (l.contains("galaxy watch"))
+            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2307/gallery/levant-galaxy-watch6-classic-r960-sm-r960nzkaeub-536858272";
+
+        // Magic Keyboard
+        if (l.contains("magic keyboard"))
+            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MK2C3?wid=532&hei=582&fmt=png-alpha";
+
+        // Logitech MX Master
+        if (l.contains("logitech mx master") || l.contains("mx master"))
+            return "https://resource.logitech.com/content/dam/logitech/en/products/mice/mx-master-3s/gallery/mx-master-3s-mouse-top-view-graphite.png";
+
+        // Google Pixel
+        if (l.contains("google pixel") || l.contains("pixel 8"))
+            return "https://lh3.googleusercontent.com/qF-S0gJBUEuVylnOFLLnXMfHKHwBqgEjJbMOmxqYxVORMzE5s3vXhwKMDrCsMSxMV5YhDg=s1000";
+
+        // Xiaomi
+        if (l.contains("xiaomi 14") || l.contains("xiaomi"))
+            return "https://i02.appmifile.com/mi-com-product/fly-birds/xiaomi-14/M/e1b1a5a4b9c5e8e9d3f2a1b0c9d8e7f6.png";
+
+        return null; // không tìm thấy → dùng fallback
     }
 
     private void loadSampleData() {
@@ -183,6 +304,9 @@ public class ProductDetailPanel implements Initializable {
         lblMinStep.setText(formatPrice(minStep));
         lblBidCount.setText("12");
         lblBidWarning.setText("⚠  Giá phải lớn hơn " + formatPrice(currentPrice));
+
+        // Load ảnh mẫu
+        loadProductImage("iPhone 15 Pro Max 1TB", "/icons/sp1.png");
 
         List<BidRow> rows = new ArrayList<>();
         rows.add(new BidRow("1", "Nguyễn Văn B", formatPrice(24_500_000L), "01/06/2024 16:45:12"));
@@ -347,7 +471,6 @@ public class ProductDetailPanel implements Initializable {
                 return;
             }
 
-            // ĐÃ THÊM: gọi server đặt giá nếu có itemId
             if (itemId != null && SessionManager.getClient() != null) {
                 User user = SessionManager.getCurrentUser();
                 Bid bid = new Bid();
@@ -367,7 +490,7 @@ public class ProductDetailPanel implements Initializable {
                                 lblBidWarning.setText("✓  Đặt giá thành công: " + formatPrice(amount));
                                 lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
                                 txtBidAmount.clear();
-                                loadBidHistoryFromServer(); // reload lịch sử thật
+                                loadBidHistoryFromServer();
                             } else {
                                 lblBidWarning.setText("✕  " + (resp != null ? resp.getMessage() : "Lỗi đặt giá"));
                                 lblBidWarning.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
@@ -383,13 +506,13 @@ public class ProductDetailPanel implements Initializable {
                 return;
             }
 
-            // Fallback: xử lý local nếu không có server
+            // Fallback local
             currentPrice = amount;
             lblCurrentPrice.setText(formatPrice(currentPrice));
             lblBidWarning.setText("✓  Đặt giá thành công: " + formatPrice(amount));
             lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
 
-            String now = java.time.LocalDateTime.now()
+            String now = LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
             int newNo = tableBidHistory.getItems().size() + 1;
             BidRow newRow = new BidRow(String.valueOf(newNo), currentUsername, formatPrice(amount), now);

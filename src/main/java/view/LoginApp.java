@@ -43,18 +43,20 @@ public class LoginApp extends Application {
         stage.setTitle("Hệ thống Đấu giá - Đăng nhập");
 
         HBox root = new HBox();
-        root.setPrefSize(900, 580);
         root.setStyle("-fx-background-color:" + BG + ";");
 
+        // ── TRÁI ─────────────────────────────────────────────────
         VBox left = new VBox(0);
         left.setPrefWidth(420);
-        left.setStyle("-fx-background-color: linear-gradient(to bottom, #0c1030, #16103a);"
+        left.setMinWidth(320);
+        left.setMaxWidth(520);
+        left.setStyle("-fx-background-color:linear-gradient(to bottom,#0c1030,#16103a);"
                 + "-fx-border-color:" + BORDER + ";-fx-border-width:0 1 0 0;");
 
         HBox logo = buildLogo();
         logo.setPadding(new Insets(22, 20, 18, 22));
-        logo.setStyle("-fx-border-color:transparent transparent " + BORDER + " transparent;"
-                + "-fx-border-width:0 0 1 0;");
+        logo.setStyle("-fx-border-color:transparent transparent " + BORDER
+                + " transparent;-fx-border-width:0 0 1 0;");
 
         VBox imgArea = new VBox(18);
         imgArea.setAlignment(Pos.CENTER);
@@ -74,17 +76,19 @@ public class LoginApp extends Application {
         t2.setLineSpacing(4);
 
         if (gavelImg != null) imgArea.getChildren().addAll(gavelImg, t1, t2);
-        else imgArea.getChildren().addAll(new Label("🔨") {{ setFont(Font.font(80)); }}, t1, t2);
+        else imgArea.getChildren().addAll(
+                new Label("🔨") {{ setFont(Font.font(80)); }}, t1, t2);
 
         left.getChildren().addAll(logo, imgArea);
 
+        // ── PHẢI ─────────────────────────────────────────────────
         VBox right = new VBox();
         right.setAlignment(Pos.CENTER);
         right.setPadding(new Insets(0, 40, 0, 24));
         HBox.setHgrow(right, Priority.ALWAYS);
 
         VBox card = new VBox(0);
-        card.setMaxWidth(380);
+        card.setMaxWidth(420);
         card.setPadding(new Insets(38, 38, 38, 38));
         card.setStyle("-fx-background-color:" + BG_CARD + ";"
                 + "-fx-background-radius:16;-fx-border-color:" + BORDER + ";"
@@ -120,10 +124,9 @@ public class LoginApp extends Application {
         txtPass.textProperty().bindBidirectional(txtVis.textProperty());
 
         Button eye = eyeBtn();
-        Label lockIco = ico("🔒");
         StackPane passToggle = new StackPane(txtPass, txtVis);
         HBox.setHgrow(passToggle, Priority.ALWAYS);
-        HBox passBox = new HBox(8, lockIco, passToggle, eye);
+        HBox passBox = new HBox(8, ico("🔒"), passToggle, eye);
         passBox.setAlignment(Pos.CENTER_LEFT);
         passBox.setPadding(new Insets(0, 12, 0, 14));
         passBox.setPrefHeight(50);
@@ -149,7 +152,7 @@ public class LoginApp extends Application {
         btnLogin.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
         btnLogin.setStyle(bStyle());
         btnLogin.setOnMouseEntered(e -> btnLogin.setStyle(bHover()));
-        btnLogin.setOnMouseExited(e -> btnLogin.setStyle(bStyle()));
+        btnLogin.setOnMouseExited(e  -> btnLogin.setStyle(bStyle()));
         VBox.setMargin(btnLogin, new Insets(0, 0, 16, 0));
 
         Label ask = new Label("Chưa có tài khoản?");
@@ -162,7 +165,7 @@ public class LoginApp extends Application {
         Label lblErr = new Label();
         lblErr.setFont(Font.font("Segoe UI", 12));
         lblErr.setTextFill(Color.web("#ef4444"));
-        lblErr.setWrapText(true); lblErr.setMaxWidth(340);
+        lblErr.setWrapText(true); lblErr.setMaxWidth(360);
         VBox.setMargin(lblErr, new Insets(8, 0, 0, 0));
 
         card.getChildren().addAll(title, sub, lUser, userBox, lPass, passBox,
@@ -170,12 +173,18 @@ public class LoginApp extends Application {
         right.getChildren().add(card);
         root.getChildren().addAll(left, right);
 
-        Scene scene = new Scene(root, 900, 580);
+        Scene scene = new Scene(root, 1280, 720);
         stage.setScene(scene);
-        stage.setResizable(false);
+        stage.setResizable(true);
+        stage.setMaximized(true);
         stage.show();
 
-        // ── Logic server ──────────────────────────────────────────
+        // Enter để đăng nhập
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == javafx.scene.input.KeyCode.ENTER) btnLogin.fire();
+        });
+
+        // ── Logic đăng nhập ──────────────────────────────────────
         btnLogin.setOnAction(e -> {
             String username = txtUser.getText().trim();
             String password = txtPass.getText().trim();
@@ -193,51 +202,38 @@ public class LoginApp extends Application {
                             Object data = resp.getData();
                             User user = null;
                             if (data instanceof User) user = (User) data;
-                            else if (data instanceof java.util.Map)
+                            else if (data instanceof Map)
                                 user = gson.fromJson(gson.toJson(data), User.class);
                             if (user == null) {
                                 lblErr.setText("Lỗi dữ liệu user");
                                 btnLogin.setText("Đăng nhập"); btnLogin.setDisable(false); return;
                             }
-
-                            // Lưu password để dùng khi chuyển tài khoản
                             user.setPassword(password);
-
-                            // Bật lắng nghe thông báo realtime
                             view.notification.RealTimeAlertPanel.startListening();
-
-                            final User finalUser = user;
-                            final AuctionClient finalClient = client;
-
-                            // Kiểm tra xem acc đã lưu và còn password hợp lệ không
-                            boolean hasSavedPassword = SessionManager.getSavedAccounts().stream()
+                            final User finalUser   = user;
+                            final AuctionClient fc = client;
+                            boolean hasSaved = SessionManager.getSavedAccounts().stream()
                                     .anyMatch(u -> u.getUsername().equals(finalUser.getUsername())
                                             && u.getPassword() != null);
-
-                            if (hasSavedPassword) {
-                                // Acc đã lưu và password còn hợp lệ → cập nhật và vào luôn
+                            if (hasSaved) {
                                 SessionManager.saveAccount(finalUser);
                                 SessionManager.setCurrentUser(finalUser);
-                                SessionManager.setClient(finalClient);
+                                SessionManager.setClient(fc);
                                 MainDashboardUI.show(stage, finalUser.getUsername());
                             } else {
-                                // Chưa lưu hoặc password bị xóa → hỏi lại
                                 showSaveAccountDialog(finalUser.getUsername(), () -> {
-                                    // Nhấn "Có" → lưu password
                                     SessionManager.saveAccount(finalUser);
                                     SessionManager.setCurrentUser(finalUser);
-                                    SessionManager.setClient(finalClient);
+                                    SessionManager.setClient(fc);
                                     MainDashboardUI.show(stage, finalUser.getUsername());
                                 }, () -> {
-                                    // Nhấn "Không" → không lưu password
                                     finalUser.setPassword(null);
                                     SessionManager.clearPassword(finalUser.getUsername());
                                     SessionManager.setCurrentUser(finalUser);
-                                    SessionManager.setClient(finalClient);
+                                    SessionManager.setClient(fc);
                                     MainDashboardUI.show(stage, finalUser.getUsername());
                                 });
                             }
-
                         } else {
                             try { client.disconnect(); } catch (Exception ignored) {}
                             lblErr.setText("✕ " + (resp != null ? resp.getMessage() : "Đăng nhập thất bại"));
@@ -259,51 +255,45 @@ public class LoginApp extends Application {
         });
     }
 
-    // ── Dialog hỏi lưu tài khoản ─────────────────────────────────
+    // ── Dialog lưu tài khoản ─────────────────────────────────────
     private void showSaveAccountDialog(String username, Runnable onYes, Runnable onNo) {
-        javafx.stage.Stage dialog = new javafx.stage.Stage();
+        Stage dialog = new Stage();
         dialog.setTitle("Lưu tài khoản");
         dialog.setResizable(false);
 
         VBox root = new VBox(16);
         root.setPadding(new Insets(28, 28, 24, 28));
-        root.setStyle("-fx-background-color: #11153a;");
+        root.setStyle("-fx-background-color:#11153a;");
         root.setAlignment(Pos.CENTER);
         root.setPrefWidth(360);
 
-        Label lblIcon = new Label("💾");
-        lblIcon.setFont(Font.font(36));
-
+        Label lblIcon = new Label("💾"); lblIcon.setFont(Font.font(36));
         Label lblTitle = new Label("Lưu tài khoản đăng nhập?");
         lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         lblTitle.setTextFill(Color.web("#f0f4ff"));
         lblTitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
-
-        Label lblDesc = new Label("Bạn có muốn lưu tài khoản \"" + username + "\"\nđể chuyển đổi nhanh không cần nhập lại?");
+        Label lblDesc = new Label("Bạn có muốn lưu tài khoản \"" + username
+                + "\"\nđể chuyển đổi nhanh không cần nhập lại?");
         lblDesc.setFont(Font.font("Segoe UI", 13));
         lblDesc.setTextFill(Color.web("#8899bb"));
         lblDesc.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         lblDesc.setWrapText(true);
 
-        HBox btnRow = new HBox(12);
-        btnRow.setAlignment(Pos.CENTER);
-
         Button btnNo = new Button("Không");
         btnNo.setPrefWidth(120); btnNo.setPrefHeight(40);
         btnNo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        btnNo.setStyle("-fx-background-color: #1a2336; -fx-text-fill: #c4cfe8;" +
-                " -fx-background-radius: 8; -fx-border-color: #2d3270;" +
-                " -fx-border-radius: 8; -fx-cursor: hand;");
+        btnNo.setStyle("-fx-background-color:#1a2336;-fx-text-fill:#c4cfe8;"
+                + "-fx-background-radius:8;-fx-border-color:#2d3270;-fx-border-radius:8;-fx-cursor:hand;");
         btnNo.setOnAction(e -> { dialog.close(); onNo.run(); });
 
         Button btnYes = new Button("Có");
         btnYes.setPrefWidth(120); btnYes.setPrefHeight(40);
         btnYes.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        btnYes.setStyle("-fx-background-color: linear-gradient(to right,#2563eb,#1d4ed8);" +
-                " -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
+        btnYes.setStyle("-fx-background-color:linear-gradient(to right,#2563eb,#1d4ed8);"
+                + "-fx-text-fill:white;-fx-background-radius:8;-fx-cursor:hand;");
         btnYes.setOnAction(e -> { dialog.close(); onYes.run(); });
 
-        btnRow.getChildren().addAll(btnNo, btnYes);
+        HBox btnRow = new HBox(12, btnNo, btnYes); btnRow.setAlignment(Pos.CENTER);
         root.getChildren().addAll(lblIcon, lblTitle, lblDesc, btnRow);
 
         Scene scene = new Scene(root);
@@ -312,23 +302,27 @@ public class LoginApp extends Application {
         dialog.show();
     }
 
-    // ── Shared helpers ────────────────────────────────────────────
-    static HBox buildLogo() {
-        HBox logo = new HBox(10);
-        logo.setAlignment(Pos.CENTER_LEFT);
+    // ── Helpers dùng chung (private, không gọi từ ngoài) ─────────
+    private HBox buildLogo() {
+        HBox logo = new HBox(10); logo.setAlignment(Pos.CENTER_LEFT);
         ImageView gv = loadImage("/images/gavel.png", 36, 36);
-        Label icon = gv != null ? new Label("", gv) : new Label("⚖") {{ setFont(Font.font(22)); }};
+        Label icon = gv != null ? new Label("", gv)
+                : new Label("⚖") {{ setFont(Font.font(22)); }};
         VBox textBox = new VBox(1);
-        Label l1 = new Label("HỆ THỐNG"); l1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11)); l1.setTextFill(Color.web("#f59e0b"));
-        Label l2 = new Label("ĐẤU GIÁ TRỰC TUYẾN"); l2.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10)); l2.setTextFill(Color.web("#c4cfe8"));
+        Label l1 = new Label("HỆ THỐNG");
+        l1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        l1.setTextFill(Color.web("#f59e0b"));
+        Label l2 = new Label("ĐẤU GIÁ TRỰC TUYẾN");
+        l2.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+        l2.setTextFill(Color.web("#c4cfe8"));
         textBox.getChildren().addAll(l1, l2);
         logo.getChildren().addAll(icon, textBox);
         return logo;
     }
 
-    static ImageView loadImage(String path, double w, double h) {
+    private ImageView loadImage(String path, double w, double h) {
         try {
-            var stream = LoginApp.class.getResourceAsStream(path);
+            var stream = getClass().getResourceAsStream(path);
             if (stream == null) return null;
             ImageView iv = new ImageView(new Image(stream));
             iv.setFitWidth(w); iv.setFitHeight(h); iv.setPreserveRatio(true);
@@ -336,11 +330,11 @@ public class LoginApp extends Application {
         } catch (Exception e) { return null; }
     }
 
-    Label fl(String s) { Label l = new Label(s); l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); l.setTextFill(Color.web(LABEL)); return l; }
-    Label ico(String s) { Label l = new Label(s); l.setFont(Font.font(15)); return l; }
-    Button eyeBtn() { Button b = new Button("👁"); b.setStyle("-fx-background-color:transparent;-fx-border-color:transparent;-fx-cursor:hand;-fx-font-size:15;"); return b; }
+    private Label    fl(String s)  { Label l = new Label(s); l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); l.setTextFill(Color.web(LABEL)); return l; }
+    private Label    ico(String s) { Label l = new Label(s); l.setFont(Font.font(15)); return l; }
+    private Button   eyeBtn()      { Button b = new Button("👁"); b.setStyle("-fx-background-color:transparent;-fx-border-color:transparent;-fx-cursor:hand;-fx-font-size:15;"); return b; }
 
-    HBox inputBox(String icon, TextField tf, Button eye) {
+    private HBox inputBox(String icon, TextField tf, Button eye) {
         tf.setMaxWidth(Double.MAX_VALUE); tf.setStyle(fStyle()); tf.setPrefHeight(50);
         HBox b = eye == null ? new HBox(8, ico(icon), tf) : new HBox(8, ico(icon), tf, eye);
         b.setAlignment(Pos.CENTER_LEFT); b.setPadding(new Insets(0, 12, 0, 14));
@@ -348,10 +342,10 @@ public class LoginApp extends Application {
         return b;
     }
 
-    String fStyle() { return "-fx-background-color:transparent;-fx-border-color:transparent;-fx-text-fill:" + TEXT + ";-fx-prompt-text-fill:#4a5a7a;-fx-font-size:13;-fx-padding:0 8;"; }
-    String wStyle() { return "-fx-background-color:" + BG_IN + ";-fx-border-color:" + BORDER + ";-fx-border-radius:12;-fx-background-radius:12;"; }
-    String bStyle() { return "-fx-background-color:linear-gradient(to right,#2563eb,#1d4ed8);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"; }
-    String bHover() { return "-fx-background-color:linear-gradient(to right,#1e40af,#4338ca);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"; }
+    private String fStyle() { return "-fx-background-color:transparent;-fx-border-color:transparent;-fx-text-fill:" + TEXT + ";-fx-prompt-text-fill:#4a5a7a;-fx-font-size:13;-fx-padding:0 8;"; }
+    private String wStyle() { return "-fx-background-color:" + BG_IN + ";-fx-border-color:" + BORDER + ";-fx-border-radius:12;-fx-background-radius:12;"; }
+    private String bStyle() { return "-fx-background-color:linear-gradient(to right,#2563eb,#1d4ed8);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"; }
+    private String bHover() { return "-fx-background-color:linear-gradient(to right,#1e40af,#4338ca);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"; }
 
     public static void main(String[] args) { launch(args); }
 }

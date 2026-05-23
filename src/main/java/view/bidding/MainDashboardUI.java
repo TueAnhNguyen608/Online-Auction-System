@@ -222,7 +222,6 @@ public class MainDashboardUI implements Initializable {
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         title.setTextFill(Color.web("#F5C518"));
 
-        // Thông tin chỉ xem
         VBox infoBox = new VBox(10);
         infoBox.setStyle("-fx-background-color: #162550; -fx-background-radius: 8; -fx-padding: 14;");
         infoBox.getChildren().addAll(
@@ -231,7 +230,6 @@ public class MainDashboardUI implements Initializable {
                 infoRow("Số dư:", String.format("%,.0f đ", user.getBalance()).replace(",", "."))
         );
 
-        // ĐÃ THÊM: Thông tin có thể sửa (Email, Họ tên, SĐT)
         Label lblInfoTitle = new Label("✏️  Thông tin cá nhân");
         lblInfoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         lblInfoTitle.setTextFill(Color.web("#CCDFF5"));
@@ -239,7 +237,6 @@ public class MainDashboardUI implements Initializable {
         VBox emailBox = new VBox(10);
         emailBox.setStyle("-fx-background-color: #162550; -fx-background-radius: 8; -fx-padding: 14;");
 
-        // Email
         Label lblEmailLbl = new Label("Email");
         lblEmailLbl.setFont(Font.font("Segoe UI", 11));
         lblEmailLbl.setTextFill(Color.web("#8AADD0"));
@@ -247,7 +244,6 @@ public class MainDashboardUI implements Initializable {
         txtEmail.setPromptText("Nhập email");
         txtEmail.setStyle(inputStyle());
 
-        // Họ và tên
         Label lblNameLbl = new Label("Họ và tên");
         lblNameLbl.setFont(Font.font("Segoe UI", 11));
         lblNameLbl.setTextFill(Color.web("#8AADD0"));
@@ -255,7 +251,6 @@ public class MainDashboardUI implements Initializable {
         txtFullName.setPromptText("Nhập họ và tên");
         txtFullName.setStyle(inputStyle());
 
-        // Số điện thoại
         Label lblPhoneLbl = new Label("Số điện thoại");
         lblPhoneLbl.setFont(Font.font("Segoe UI", 11));
         lblPhoneLbl.setTextFill(Color.web("#8AADD0"));
@@ -284,7 +279,6 @@ public class MainDashboardUI implements Initializable {
                 try {
                     AuctionClient client = SessionManager.getClient();
                     if (client == null) throw new Exception("Chưa kết nối server");
-                    // ĐÃ THÊM: dùng UPDATE_PROFILE thay vì UPDATE_USER_INFO
                     java.util.Map<String, Object> profileData = new java.util.HashMap<>();
                     profileData.put("email", newEmail);
                     profileData.put("fullName", newFullName);
@@ -314,7 +308,6 @@ public class MainDashboardUI implements Initializable {
                 lblPhoneLbl, txtPhone,
                 lblEmailMsg, btnSaveEmail);
 
-        // Đổi mật khẩu (ẩn/hiện)
         HBox passHeader = new HBox(10);
         passHeader.setAlignment(Pos.CENTER_LEFT);
         passHeader.setCursor(javafx.scene.Cursor.HAND);
@@ -359,8 +352,8 @@ public class MainDashboardUI implements Initializable {
         btnChangePass.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         btnChangePass.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand;");
         btnChangePass.setOnAction(e -> {
-            String oldPass = txtOldPass.getText().trim();
-            String newPass = txtNewPass.getText().trim();
+            String oldPass  = txtOldPass.getText().trim();
+            String newPass  = txtNewPass.getText().trim();
             String confPass = txtConfPass.getText().trim();
             if (oldPass.isEmpty() || newPass.isEmpty() || confPass.isEmpty()) {
                 lblPassMsg.setText("Vui lòng nhập đầy đủ!");
@@ -378,7 +371,6 @@ public class MainDashboardUI implements Initializable {
                 try {
                     AuctionClient client = SessionManager.getClient();
                     if (client == null) throw new Exception("Chưa kết nối server");
-                    // ĐÃ SỬA: dùng Map thay vì Object[]
                     Map<String, String> passData = new HashMap<>();
                     passData.put("oldPassword", oldPass);
                     passData.put("newPassword", newPass);
@@ -388,7 +380,6 @@ public class MainDashboardUI implements Initializable {
                             lblPassMsg.setText("✅ Đổi mật khẩu thành công!");
                             lblPassMsg.setTextFill(Color.web("#22c55e"));
                             txtOldPass.clear(); txtNewPass.clear(); txtConfPass.clear();
-                            // Xóa password cũ → lần sau chuyển acc sẽ hỏi lưu lại
                             SessionManager.clearPassword(user.getUsername());
                         } else {
                             lblPassMsg.setText("✕ " + (resp != null ? resp.getMessage() : "Lỗi server"));
@@ -518,13 +509,11 @@ public class MainDashboardUI implements Initializable {
     }
 
     private void countUnreadNotifications() {
-        // Dùng count từ SessionManager (được cập nhật bởi NotificationUI và RealTimeAlertPanel)
         int cached = SessionManager.getUnreadNotifCount();
         if (cached > 0) {
             updateNotifCount(cached);
             return;
         }
-        // Nếu chưa có cached thì fetch từ server
         new Thread(() -> {
             try {
                 AuctionClient client = SessionManager.getClient();
@@ -544,7 +533,6 @@ public class MainDashboardUI implements Initializable {
         }).start();
     }
 
-    // ĐÃ THÊM: gọi khi quay lại từ NotificationUI để refresh badge
     public static void refreshNotifBadge() {
         SessionManager.setUnreadNotifCount(0);
     }
@@ -561,11 +549,22 @@ public class MainDashboardUI implements Initializable {
         }
     }
 
+    // ── Navigation ───────────────────────────────────────────────
     @FXML private void onSanPham()      { navigate("/fxml/bidding/ProductListPanel.fxml", "Sản phẩm"); }
     @FXML private void onAutoBid()      { navigate("/fxml/bidding/AutoBidPanel.fxml", "Đấu giá tự động"); }
-    @FXML private void onLichSu()       { navigate("/fxml/history/MyBidsHistoryUI.fxml", "Lịch sử đấu giá"); }
+
+    // ✅ ĐÃ FIX: Mở MyBidsHistoryUI trực tiếp thay vì tìm FXML không tồn tại
+    @FXML private void onLichSu() {
+        AuctionClient client = SessionManager.getClient();
+        User user = SessionManager.getCurrentUser();
+        if (client == null || user == null) {
+            info("Chưa kết nối server. Vui lòng đăng nhập lại.");
+            return;
+        }
+        new view.history.MyBidsHistoryUI().show(client, user);
+    }
+
     @FXML private void onNotification() {
-        // Reset badge khi mở NotificationUI
         SessionManager.clearUnreadNotif();
         updateNotifCount(0);
         navigate("/fxml/notification/NotificationUI.fxml", "Thông báo");

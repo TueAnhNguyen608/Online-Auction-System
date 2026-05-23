@@ -16,7 +16,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import utils.DialogUtils;
 
 public class RegisterApp extends Application {
 
@@ -32,52 +31,46 @@ public class RegisterApp extends Application {
         stage.setTitle("Hệ thống Đấu giá - Đăng ký");
 
         HBox root = new HBox();
-        root.setPrefSize(980, 640);
         root.setStyle("-fx-background-color:" + BG + ";");
 
         // ── TRÁI ─────────────────────────────────────────────────
         VBox left = new VBox(0);
-        left.setPrefWidth(380);
+        left.setPrefWidth(380); left.setMinWidth(300); left.setMaxWidth(460);
         left.setStyle("-fx-background-color:linear-gradient(to bottom,#0c1030,#16103a);"
                 + "-fx-border-color:" + BORDER + ";-fx-border-width:0 1 0 0;");
 
-        HBox logo = LoginApp.buildLogo();
+        HBox logo = buildLogo();
         logo.setPadding(new Insets(22, 20, 18, 22));
-        logo.setStyle("-fx-border-color:transparent transparent " + BORDER + " transparent;-fx-border-width:0 0 1 0;");
+        logo.setStyle("-fx-border-color:transparent transparent " + BORDER
+                + " transparent;-fx-border-width:0 0 1 0;");
 
-        VBox imgArea = new VBox(18);
-        imgArea.setAlignment(Pos.CENTER);
+        VBox imgArea = new VBox(18); imgArea.setAlignment(Pos.CENTER);
         imgArea.setPadding(new Insets(30, 20, 20, 20));
         VBox.setVgrow(imgArea, Priority.ALWAYS);
 
-        ImageView shieldImg = LoginApp.loadImage("/images/shield.png", 220, 220);
-        if (shieldImg != null) {
-            DropShadow gs = new DropShadow(30, Color.web("#22c55e", 0.6));
-            shieldImg.setEffect(gs);
-        }
+        ImageView shieldImg = loadImage("/images/shield.png", 220, 220);
+        if (shieldImg != null)
+            shieldImg.setEffect(new DropShadow(30, Color.web("#22c55e", 0.6)));
 
         Label t1 = new Label("Tham gia ngay!");
         t1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
         t1.setTextFill(Color.web(TEXT));
 
         Label t2 = new Label("Tạo tài khoản để bắt đầu\nhành trình đấu giá của bạn.");
-        t2.setFont(Font.font("Segoe UI", 13));
-        t2.setTextFill(Color.web(MUTED));
-        t2.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
-        t2.setLineSpacing(4);
+        t2.setFont(Font.font("Segoe UI", 13)); t2.setTextFill(Color.web(MUTED));
+        t2.setTextAlignment(javafx.scene.text.TextAlignment.CENTER); t2.setLineSpacing(4);
 
         if (shieldImg != null) imgArea.getChildren().addAll(shieldImg, t1, t2);
-        else imgArea.getChildren().addAll(new Label("🛡️") {{ setFont(Font.font(80)); }}, t1, t2);
-
+        else imgArea.getChildren().addAll(
+                new Label("🛡️") {{ setFont(Font.font(80)); }}, t1, t2);
         left.getChildren().addAll(logo, imgArea);
 
-        // ── PHẢI – form ───────────────────────────────────────────
-        VBox right = new VBox();
-        right.setAlignment(Pos.CENTER);
-        right.setPadding(new Insets(0, 36, 0, 24));
+        // ── PHẢI ─────────────────────────────────────────────────
+        VBox right = new VBox(); right.setAlignment(Pos.CENTER);
+        right.setPadding(new Insets(24, 36, 24, 24));
         HBox.setHgrow(right, Priority.ALWAYS);
 
-        VBox card = new VBox(0);
+        VBox card = new VBox(0); card.setMaxWidth(560);
         card.setPadding(new Insets(32, 36, 32, 36));
         card.setStyle("-fx-background-color:#11153a;-fx-background-radius:16;"
                 + "-fx-border-color:" + BORDER + ";-fx-border-radius:16;-fx-border-width:1;"
@@ -88,27 +81,23 @@ public class RegisterApp extends Application {
         title.setTextFill(Color.web(TEXT));
 
         Label sub = new Label("Điền thông tin để tạo tài khoản mới");
-        sub.setFont(Font.font("Segoe UI", 13));
-        sub.setTextFill(Color.web(MUTED));
+        sub.setFont(Font.font("Segoe UI", 13)); sub.setTextFill(Color.web(MUTED));
         VBox.setMargin(sub, new Insets(4, 0, 20, 0));
 
         // Grid 2 cột
-        GridPane grid = new GridPane();
-        grid.setHgap(14); grid.setVgap(14);
-        ColumnConstraints cc = new ColumnConstraints();
-        cc.setPercentWidth(50);
-        grid.getColumnConstraints().addAll(cc, new ColumnConstraints(){{ setPercentWidth(50); }});
+        GridPane grid = new GridPane(); grid.setHgap(14); grid.setVgap(14);
+        ColumnConstraints cc1 = new ColumnConstraints(); cc1.setPercentWidth(50);
+        ColumnConstraints cc2 = new ColumnConstraints(); cc2.setPercentWidth(50);
+        grid.getColumnConstraints().addAll(cc1, cc2);
 
-        TextField txtName = inp("Nhập họ và tên");
-        TextField txtUser = inp("Nhập tên đăng nhập");
-        TextField txtEmail = inp("Nhập email");
-        TextField txtPhone = inp("Nhập số điện thoại");
+        TextField     txtName  = inp("Nhập họ và tên");
+        TextField     txtUser  = inp("Nhập tên đăng nhập");
+        TextField     txtEmail = inp("Nhập email");
+        TextField     txtPhone = inp("Nhập số điện thoại");
+        PasswordField txtPass  = pass("Nhập mật khẩu");
+        PasswordField txtConf  = pass("Nhập lại mật khẩu");
 
-        PasswordField txtPass = pass("Nhập mật khẩu");
-        PasswordField txtConf = pass("Nhập lại mật khẩu");
-
-        // Eye buttons
-        Button eye1 = eyeBtn(); Button eye2 = eyeBtn();
+        Button    eye1  = eyeBtn(); Button eye2 = eyeBtn();
         TextField pVis1 = visField("Nhập mật khẩu");
         TextField pVis2 = visField("Nhập lại mật khẩu");
         txtPass.textProperty().bindBidirectional(pVis1.textProperty());
@@ -122,77 +111,118 @@ public class RegisterApp extends Application {
         HBox confBox = passWrap("🔒", ps2, eye2);
 
         final boolean[] s1 = {false}, s2 = {false};
-        eye1.setOnAction(e -> { s1[0]=!s1[0]; txtPass.setVisible(!s1[0]); txtPass.setManaged(!s1[0]); pVis1.setVisible(s1[0]); pVis1.setManaged(s1[0]); eye1.setText(s1[0]?"🙈":"👁"); });
-        eye2.setOnAction(e -> { s2[0]=!s2[0]; txtConf.setVisible(!s2[0]); txtConf.setManaged(!s2[0]); pVis2.setVisible(s2[0]); pVis2.setManaged(s2[0]); eye2.setText(s2[0]?"🙈":"👁"); });
+        eye1.setOnAction(e -> {
+            s1[0]=!s1[0]; txtPass.setVisible(!s1[0]); txtPass.setManaged(!s1[0]);
+            pVis1.setVisible(s1[0]); pVis1.setManaged(s1[0]); eye1.setText(s1[0]?"🙈":"👁");
+        });
+        eye2.setOnAction(e -> {
+            s2[0]=!s2[0]; txtConf.setVisible(!s2[0]); txtConf.setManaged(!s2[0]);
+            pVis2.setVisible(s2[0]); pVis2.setManaged(s2[0]); eye2.setText(s2[0]?"🙈":"👁");
+        });
 
-        grid.add(fieldBox("Họ và tên",        "👤", txtName),  0, 0);
-        grid.add(fieldBox("Tên đăng nhập",    "🪪", txtUser),  1, 0);
-        grid.add(fieldBox("Email",            "✉️", txtEmail), 0, 1);
-        grid.add(fieldBox("Số điện thoại",    "📞", txtPhone), 1, 1);
-        grid.add(labeled("Mật khẩu",    passBox), 0, 2);
-        grid.add(labeled("Xác nhận mật khẩu", confBox), 1, 2);
+        grid.add(fieldBox("Họ và tên",           "👤", txtName),  0, 0);
+        grid.add(fieldBox("Tên đăng nhập",        "🪪", txtUser),  1, 0);
+        grid.add(fieldBox("Email",               "✉️", txtEmail), 0, 1);
+        grid.add(fieldBox("Số điện thoại",        "📞", txtPhone), 1, 1);
+        grid.add(labeled("Mật khẩu",              passBox),        0, 2);
+        grid.add(labeled("Xác nhận mật khẩu",     confBox),        1, 2);
         VBox.setMargin(grid, new Insets(0, 0, 14, 0));
 
-        // Điều khoản
+        // ── Điều khoản ────────────────────────────────────────────
         CheckBox chkTerms = new CheckBox();
+        chkTerms.setStyle("-fx-cursor:hand;");
+
         Label tTxt = new Label("Tôi đồng ý với ");
         tTxt.setFont(Font.font("Segoe UI", 12)); tTxt.setTextFill(Color.web(MUTED));
+
         Hyperlink lnkTerms = link("Điều khoản sử dụng");
-        Label tAnd = new Label(" và "); tAnd.setFont(Font.font("Segoe UI", 12)); tAnd.setTextFill(Color.web(MUTED));
+        Label tAnd = new Label(" và ");
+        tAnd.setFont(Font.font("Segoe UI", 12)); tAnd.setTextFill(Color.web(MUTED));
         Hyperlink lnkPriv = link("Chính sách bảo mật");
-        lnkTerms.setOnAction(e -> new Alert(Alert.AlertType.INFORMATION,"Điều khoản sử dụng hệ thống đấu giá."){{ setHeaderText(null); showAndWait(); }});
-        lnkPriv.setOnAction(e -> new Alert(Alert.AlertType.INFORMATION,"Chính sách bảo mật hệ thống đấu giá."){{ setHeaderText(null); showAndWait(); }});
+
+        // ✅ Mở dialog Điều khoản sử dụng
+        lnkTerms.setOnAction(e -> showTermsDialog(stage));
+
+        // ✅ Mở dialog Chính sách bảo mật
+        lnkPriv.setOnAction(e -> showPrivacyDialog(stage));
+
         HBox termsRow = new HBox(5, chkTerms, tTxt, lnkTerms, tAnd, lnkPriv);
         termsRow.setAlignment(Pos.CENTER_LEFT);
         VBox.setMargin(termsRow, new Insets(0, 0, 16, 0));
 
-        // Nút đăng ký – màu xanh lá giống màn hình mẫu
+        // Nút đăng ký
         Button btnReg = new Button("Đăng ký");
         btnReg.setMaxWidth(Double.MAX_VALUE); btnReg.setPrefHeight(48);
         btnReg.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
-        btnReg.setStyle("-fx-background-color:linear-gradient(to right,#16a34a,#15803d);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;");
-        btnReg.setOnMouseEntered(e -> btnReg.setStyle("-fx-background-color:linear-gradient(to right,#15803d,#166534);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"));
-        btnReg.setOnMouseExited(e -> btnReg.setStyle("-fx-background-color:linear-gradient(to right,#16a34a,#15803d);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;"));
+        String rs = "-fx-background-color:linear-gradient(to right,#16a34a,#15803d);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;";
+        String rh = "-fx-background-color:linear-gradient(to right,#15803d,#166534);-fx-text-fill:white;-fx-background-radius:10;-fx-cursor:hand;";
+        btnReg.setStyle(rs);
+        btnReg.setOnMouseEntered(e -> btnReg.setStyle(rh));
+        btnReg.setOnMouseExited(e  -> btnReg.setStyle(rs));
         VBox.setMargin(btnReg, new Insets(0, 0, 12, 0));
 
-        Label ask = new Label("Đã có tài khoản?"); ask.setFont(Font.font("Segoe UI", 13)); ask.setTextFill(Color.web(MUTED));
-        Label lnkLogin = new Label("Đăng nhập ngay"); lnkLogin.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        Label ask = new Label("Đã có tài khoản?");
+        ask.setFont(Font.font("Segoe UI", 13)); ask.setTextFill(Color.web(MUTED));
+        Label lnkLogin = new Label("Đăng nhập ngay");
+        lnkLogin.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         lnkLogin.setTextFill(Color.web("#a78bfa")); lnkLogin.setCursor(Cursor.HAND);
         HBox loginRow = new HBox(5, ask, lnkLogin); loginRow.setAlignment(Pos.CENTER);
 
-        Label lblErr = new Label(); lblErr.setFont(Font.font("Segoe UI", 12)); lblErr.setTextFill(Color.web("#ef4444")); lblErr.setWrapText(true);
-        Label lblOk  = new Label(); lblOk.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12)); lblOk.setTextFill(Color.web("#10b981"));
+        Label lblErr = new Label();
+        lblErr.setFont(Font.font("Segoe UI", 12)); lblErr.setTextFill(Color.web("#ef4444"));
+        lblErr.setWrapText(true); lblErr.setMaxWidth(480);
+        Label lblOk = new Label();
+        lblOk.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        lblOk.setTextFill(Color.web("#10b981"));
         VBox.setMargin(lblErr, new Insets(6, 0, 0, 0));
 
         card.getChildren().addAll(title, sub, grid, termsRow, btnReg, loginRow, lblErr, lblOk);
         right.getChildren().add(card);
         root.getChildren().addAll(left, right);
 
-        Scene scene = new Scene(root, 980, 640);
+        Scene scene = new Scene(root, 1280, 720);
         stage.setScene(scene);
-        stage.setResizable(false);
+        stage.setResizable(true);
+        stage.setMaximized(true);
         stage.show();
 
-        // ── Logic ─────────────────────────────────────────────────
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == javafx.scene.input.KeyCode.ENTER) btnReg.fire();
+        });
+
+        // ── Logic đăng ký ─────────────────────────────────────────
         btnReg.setOnAction(e -> {
             String username = txtUser.getText().trim();
             String password = txtPass.getText().trim();
             String confirm  = txtConf.getText().trim();
             String email    = txtEmail.getText().trim();
-            if (username.isEmpty() || password.isEmpty()) { lblErr.setText("Vui lòng nhập tên và mật khẩu!"); return; }
-            if (!password.equals(confirm))                { lblErr.setText("Mật khẩu không khớp!"); return; }
-            if (password.length() < 6)                    { lblErr.setText("Mật khẩu tối thiểu 6 ký tự!"); return; }
-            if (!chkTerms.isSelected())                   { lblErr.setText("Vui lòng đồng ý điều khoản!"); return; }
-            btnReg.setText("Đang xử lý..."); btnReg.setDisable(true); lblErr.setText("");
+
+            if (username.isEmpty() || password.isEmpty()) {
+                lblErr.setText("Vui lòng nhập tên và mật khẩu!"); return;
+            }
+            if (!password.equals(confirm)) {
+                lblErr.setText("Mật khẩu không khớp!"); return;
+            }
+            if (password.length() < 6) {
+                lblErr.setText("Mật khẩu tối thiểu 6 ký tự!"); return;
+            }
+            // ✅ Bắt buộc tích điều khoản mới được đăng ký
+            if (!chkTerms.isSelected()) {
+                lblErr.setText("⚠ Vui lòng đọc và đồng ý Điều khoản sử dụng trước khi đăng ký!");
+                return;
+            }
+
+            btnReg.setText("Đang xử lý..."); btnReg.setDisable(true);
+            lblErr.setText(""); lblOk.setText("");
+
             new Thread(() -> {
                 try {
                     AuctionClient client = new AuctionClient();
                     client.connect("localhost", 9999);
-                    // ĐÃ SỬA: comment out dòng này vì method chưa có trong AuctionClient
-                    // client.startRealtimeListener(null);
-                    User u = new User(); u.setUsername(username); u.setPassword(password);
-                    u.setEmail(email.isEmpty() ? null : email); u.setRole("BIDDER");
-                    // Huyền đã thêm
+                    User u = new User();
+                    u.setUsername(username); u.setPassword(password);
+                    u.setEmail(email.isEmpty() ? null : email);
+                    u.setRole("BIDDER");
                     u.setFullName(txtName.getText().trim().isEmpty() ? null : txtName.getText().trim());
                     u.setPhone(txtPhone.getText().trim().isEmpty() ? null : txtPhone.getText().trim());
                     ResponseMessage resp = client.register(u);
@@ -202,14 +232,236 @@ public class RegisterApp extends Application {
                             lblOk.setText("✓ Đăng ký thành công! Đang chuyển hướng...");
                             new Thread(() -> {
                                 try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
-                                Platform.runLater(() -> { new LoginApp().start(new Stage()); stage.close(); });
+                                Platform.runLater(() -> {
+                                    new LoginApp().start(new Stage()); stage.close();
+                                });
                             }).start();
-                        } else { lblErr.setText("✕ " + resp.getMessage()); btnReg.setText("Đăng ký"); btnReg.setDisable(false); }
+                        } else {
+                            lblErr.setText("✕ " + resp.getMessage());
+                            btnReg.setText("Đăng ký"); btnReg.setDisable(false);
+                        }
                     });
-                } catch (Exception ex) { Platform.runLater(() -> { lblErr.setText("✕ Lỗi kết nối: " + ex.getMessage()); btnReg.setText("Đăng ký"); btnReg.setDisable(false); }); }
+                } catch (Exception ex) {
+                    Platform.runLater(() -> {
+                        lblErr.setText("✕ Lỗi kết nối: " + ex.getMessage());
+                        btnReg.setText("Đăng ký"); btnReg.setDisable(false);
+                    });
+                }
             }).start();
         });
+
         lnkLogin.setOnMouseClicked(e -> { new LoginApp().start(new Stage()); stage.close(); });
+    }
+
+    // ── Dialog Điều khoản sử dụng ─────────────────────────────────
+    private void showTermsDialog(Stage owner) {
+        Stage dialog = new Stage();
+        dialog.initOwner(owner);
+        dialog.setTitle("Điều khoản sử dụng");
+        dialog.setResizable(true);
+
+        VBox root = new VBox(0);
+        root.setStyle("-fx-background-color:#0d1135;");
+
+        // Header
+        HBox header = new HBox();
+        header.setPadding(new Insets(20, 24, 16, 24));
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setStyle("-fx-border-color:transparent transparent #2d3270 transparent;-fx-border-width:0 0 1 0;");
+        Label ico  = new Label("📜"); ico.setFont(Font.font(24));
+        Label hLbl = new Label("Điều khoản sử dụng");
+        hLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        hLbl.setTextFill(Color.web("#f0f4ff"));
+        HBox.setMargin(hLbl, new Insets(0, 0, 0, 10));
+        header.getChildren().addAll(ico, hLbl);
+
+        // Nội dung
+        ScrollPane scroll = new ScrollPane();
+        scroll.setStyle("-fx-background-color:transparent;-fx-background:transparent;-fx-border-color:transparent;");
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        VBox content = new VBox(14);
+        content.setPadding(new Insets(20, 28, 20, 28));
+        content.setStyle("-fx-background-color:#0d1135;");
+
+        content.getChildren().addAll(
+                section("1. Chấp nhận điều khoản",
+                        "Bằng cách đăng ký và sử dụng Hệ thống Đấu giá Trực tuyến, bạn xác nhận rằng bạn đã đọc, hiểu và đồng ý bị ràng buộc bởi các Điều khoản sử dụng này. Nếu bạn không đồng ý với bất kỳ điều khoản nào, vui lòng không sử dụng dịch vụ."),
+                section("2. Điều kiện tham gia",
+                        "• Người dùng phải từ 18 tuổi trở lên.\n" +
+                                "• Cung cấp thông tin cá nhân chính xác, đầy đủ khi đăng ký.\n" +
+                                "• Mỗi người dùng chỉ được tạo một tài khoản.\n" +
+                                "• Không được chia sẻ tài khoản cho người khác."),
+                section("3. Quy tắc đấu giá",
+                        "• Mỗi lần đặt giá phải cao hơn giá hiện tại tối thiểu theo bước giá quy định.\n" +
+                                "• Giá đặt không thể rút lại sau khi xác nhận.\n" +
+                                "• Người thắng đấu giá có nghĩa vụ hoàn tất giao dịch trong vòng 48 giờ.\n" +
+                                "• Hủy giao dịch sau khi thắng có thể dẫn đến khóa tài khoản."),
+                section("4. Thanh toán",
+                        "• Mọi giao dịch thanh toán phải thực hiện qua các phương thức được hệ thống hỗ trợ.\n" +
+                                "• Hệ thống không chịu trách nhiệm với các giao dịch ngoài nền tảng.\n" +
+                                "• Hoàn tiền chỉ được thực hiện trong trường hợp sản phẩm không đúng mô tả."),
+                section("5. Trách nhiệm của người bán",
+                        "• Người bán phải cung cấp thông tin sản phẩm trung thực, chính xác.\n" +
+                                "• Không được đăng bán các sản phẩm vi phạm pháp luật.\n" +
+                                "• Có trách nhiệm giao hàng đúng hạn sau khi đấu giá kết thúc."),
+                section("6. Hành vi bị cấm",
+                        "• Thao túng giá, tạo tài khoản giả để tự đặt giá cho sản phẩm của mình.\n" +
+                                "• Sử dụng bot hoặc phần mềm tự động để đặt giá.\n" +
+                                "• Quấy rối, đe dọa người dùng khác trên hệ thống."),
+                section("7. Giới hạn trách nhiệm",
+                        "Hệ thống không chịu trách nhiệm về bất kỳ tổn thất nào phát sinh từ việc sử dụng dịch vụ, bao gồm nhưng không giới hạn ở mất mát dữ liệu, gián đoạn dịch vụ hoặc các giao dịch không thành công."),
+                section("8. Thay đổi điều khoản",
+                        "Hệ thống có quyền cập nhật Điều khoản sử dụng bất kỳ lúc nào. Người dùng sẽ được thông báo qua email khi có thay đổi quan trọng. Tiếp tục sử dụng dịch vụ sau khi thông báo đồng nghĩa với việc chấp nhận điều khoản mới.")
+        );
+
+        scroll.setContent(content);
+
+        // Footer
+        HBox footer = new HBox();
+        footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.setPadding(new Insets(14, 24, 14, 24));
+        footer.setStyle("-fx-border-color:#2d3270 transparent transparent transparent;-fx-border-width:1 0 0 0;");
+        Button btnClose = new Button("Đã hiểu");
+        btnClose.setPrefWidth(120); btnClose.setPrefHeight(38);
+        btnClose.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        btnClose.setStyle("-fx-background-color:linear-gradient(to right,#2563eb,#1d4ed8);-fx-text-fill:white;-fx-background-radius:8;-fx-cursor:hand;");
+        btnClose.setOnAction(e -> dialog.close());
+        footer.getChildren().add(btnClose);
+
+        root.getChildren().addAll(header, scroll, footer);
+
+        Scene scene = new Scene(root, 620, 560);
+        scene.setFill(Color.web("#0d1135"));
+        dialog.setScene(scene);
+        dialog.show();
+    }
+
+    // ── Dialog Chính sách bảo mật ─────────────────────────────────
+    private void showPrivacyDialog(Stage owner) {
+        Stage dialog = new Stage();
+        dialog.initOwner(owner);
+        dialog.setTitle("Chính sách bảo mật");
+        dialog.setResizable(true);
+
+        VBox root = new VBox(0);
+        root.setStyle("-fx-background-color:#0d1135;");
+
+        HBox header = new HBox();
+        header.setPadding(new Insets(20, 24, 16, 24));
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setStyle("-fx-border-color:transparent transparent #2d3270 transparent;-fx-border-width:0 0 1 0;");
+        Label ico  = new Label("🔒"); ico.setFont(Font.font(24));
+        Label hLbl = new Label("Chính sách bảo mật");
+        hLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        hLbl.setTextFill(Color.web("#f0f4ff"));
+        HBox.setMargin(hLbl, new Insets(0, 0, 0, 10));
+        header.getChildren().addAll(ico, hLbl);
+
+        ScrollPane scroll = new ScrollPane();
+        scroll.setStyle("-fx-background-color:transparent;-fx-background:transparent;-fx-border-color:transparent;");
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        VBox content = new VBox(14);
+        content.setPadding(new Insets(20, 28, 20, 28));
+        content.setStyle("-fx-background-color:#0d1135;");
+
+        content.getChildren().addAll(
+                section("1. Thông tin chúng tôi thu thập",
+                        "• Thông tin cá nhân: họ tên, tên đăng nhập, email, số điện thoại.\n" +
+                                "• Thông tin giao dịch: lịch sử đặt giá, sản phẩm đã thắng, lịch sử thanh toán.\n" +
+                                "• Thông tin kỹ thuật: địa chỉ IP, loại thiết bị, thời gian truy cập."),
+                section("2. Mục đích sử dụng thông tin",
+                        "• Xác thực danh tính và quản lý tài khoản người dùng.\n" +
+                                "• Xử lý giao dịch đấu giá và thanh toán.\n" +
+                                "• Gửi thông báo về hoạt động đấu giá, kết quả và cập nhật hệ thống.\n" +
+                                "• Cải thiện chất lượng dịch vụ và trải nghiệm người dùng."),
+                section("3. Bảo mật thông tin",
+                        "• Dữ liệu được mã hóa bằng chuẩn SSL/TLS trong quá trình truyền tải.\n" +
+                                "• Mật khẩu được lưu trữ dưới dạng mã hóa một chiều (hash).\n" +
+                                "• Hệ thống được kiểm tra bảo mật định kỳ.\n" +
+                                "• Chỉ nhân viên được ủy quyền mới có quyền truy cập dữ liệu người dùng."),
+                section("4. Chia sẻ thông tin",
+                        "Chúng tôi không bán, trao đổi hoặc chia sẻ thông tin cá nhân của bạn với bên thứ ba, ngoại trừ:\n" +
+                                "• Khi có yêu cầu từ cơ quan pháp luật.\n" +
+                                "• Khi cần thiết để hoàn tất giao dịch (ví dụ: thông tin giao hàng cho người bán)."),
+                section("5. Quyền của người dùng",
+                        "• Xem và cập nhật thông tin cá nhân bất kỳ lúc nào.\n" +
+                                "• Yêu cầu xóa tài khoản và toàn bộ dữ liệu liên quan.\n" +
+                                "• Từ chối nhận email thông báo marketing.\n" +
+                                "• Yêu cầu bản sao dữ liệu cá nhân của bạn."),
+                section("6. Cookie và theo dõi",
+                        "Hệ thống sử dụng cookie để duy trì phiên đăng nhập và cải thiện trải nghiệm. Bạn có thể tắt cookie trong trình duyệt, tuy nhiên một số tính năng có thể bị ảnh hưởng."),
+                section("7. Thay đổi chính sách",
+                        "Chính sách bảo mật có thể được cập nhật định kỳ. Chúng tôi sẽ thông báo cho bạn qua email khi có thay đổi quan trọng."),
+                section("8. Liên hệ",
+                        "Nếu bạn có câu hỏi về chính sách bảo mật, vui lòng liên hệ:\n" +
+                                "📧 Email: support@auction.vn\n" +
+                                "📞 Hotline: 1800-xxxx (Miễn phí, 8h-20h các ngày trong tuần)")
+        );
+
+        scroll.setContent(content);
+
+        HBox footer = new HBox(); footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.setPadding(new Insets(14, 24, 14, 24));
+        footer.setStyle("-fx-border-color:#2d3270 transparent transparent transparent;-fx-border-width:1 0 0 0;");
+        Button btnClose = new Button("Đã hiểu");
+        btnClose.setPrefWidth(120); btnClose.setPrefHeight(38);
+        btnClose.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        btnClose.setStyle("-fx-background-color:linear-gradient(to right,#2563eb,#1d4ed8);-fx-text-fill:white;-fx-background-radius:8;-fx-cursor:hand;");
+        btnClose.setOnAction(e -> dialog.close());
+        footer.getChildren().add(btnClose);
+
+        root.getChildren().addAll(header, scroll, footer);
+
+        Scene scene = new Scene(root, 620, 560);
+        scene.setFill(Color.web("#0d1135"));
+        dialog.setScene(scene);
+        dialog.show();
+    }
+
+    // ── Helper tạo section nội dung ───────────────────────────────
+    private VBox section(String title, String body) {
+        Label lblTitle = new Label(title);
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        lblTitle.setTextFill(Color.web("#a78bfa"));
+
+        Label lblBody = new Label(body);
+        lblBody.setFont(Font.font("Segoe UI", 12));
+        lblBody.setTextFill(Color.web("#c4cfe8"));
+        lblBody.setWrapText(true);
+        lblBody.setLineSpacing(4);
+
+        VBox box = new VBox(6, lblTitle, lblBody);
+        box.setPadding(new Insets(12, 16, 12, 16));
+        box.setStyle("-fx-background-color:#11153a;-fx-background-radius:10;"
+                + "-fx-border-color:#2d3270;-fx-border-radius:10;-fx-border-width:1;");
+        return box;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+    private HBox buildLogo() {
+        HBox logo = new HBox(10); logo.setAlignment(Pos.CENTER_LEFT);
+        ImageView gv = loadImage("/images/gavel.png", 36, 36);
+        Label icon = gv != null ? new Label("", gv) : new Label("⚖") {{ setFont(Font.font(22)); }};
+        VBox textBox = new VBox(1);
+        Label l1 = new Label("HỆ THỐNG"); l1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11)); l1.setTextFill(Color.web("#f59e0b"));
+        Label l2 = new Label("ĐẤU GIÁ TRỰC TUYẾN"); l2.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10)); l2.setTextFill(Color.web("#c4cfe8"));
+        textBox.getChildren().addAll(l1, l2);
+        logo.getChildren().addAll(icon, textBox);
+        return logo;
+    }
+
+    private ImageView loadImage(String path, double w, double h) {
+        try {
+            var stream = getClass().getResourceAsStream(path);
+            if (stream == null) return null;
+            ImageView iv = new ImageView(new Image(stream));
+            iv.setFitWidth(w); iv.setFitHeight(h); iv.setPreserveRatio(true);
+            return iv;
+        } catch (Exception e) { return null; }
     }
 
     private VBox fieldBox(String label, String icon, TextField tf) {
@@ -233,11 +485,12 @@ public class RegisterApp extends Application {
         HBox.setHgrow(sp, Priority.ALWAYS); return b;
     }
 
-    private TextField inp(String p) { TextField tf = new TextField(); tf.setPromptText(p); return tf; }
-    private PasswordField pass(String p) { PasswordField pf = new PasswordField(); pf.setPromptText(p); pf.setMaxWidth(Double.MAX_VALUE); pf.setStyle(fStyle()); return pf; }
-    private TextField visField(String p) { TextField tf = new TextField(); tf.setPromptText(p); tf.setMaxWidth(Double.MAX_VALUE); tf.setStyle(fStyle()); tf.setVisible(false); tf.setManaged(false); return tf; }
-    private Button eyeBtn() { Button b = new Button("👁"); b.setStyle("-fx-background-color:transparent;-fx-border-color:transparent;-fx-cursor:hand;-fx-font-size:13;"); return b; }
-    private Hyperlink link(String s) { Hyperlink h = new Hyperlink(s); h.setTextFill(Color.web("#a78bfa")); h.setBorder(Border.EMPTY); h.setFont(Font.font("Segoe UI", 12)); return h; }
+    private TextField     inp(String p)      { TextField tf = new TextField(); tf.setPromptText(p); return tf; }
+    private PasswordField pass(String p)     { PasswordField pf = new PasswordField(); pf.setPromptText(p); pf.setMaxWidth(Double.MAX_VALUE); pf.setStyle(fStyle()); return pf; }
+    private TextField     visField(String p) { TextField tf = new TextField(); tf.setPromptText(p); tf.setMaxWidth(Double.MAX_VALUE); tf.setStyle(fStyle()); tf.setVisible(false); tf.setManaged(false); return tf; }
+    private Button        eyeBtn()           { Button b = new Button("👁"); b.setStyle("-fx-background-color:transparent;-fx-border-color:transparent;-fx-cursor:hand;-fx-font-size:13;"); return b; }
+    private Hyperlink     link(String s)     { Hyperlink h = new Hyperlink(s); h.setTextFill(Color.web("#a78bfa")); h.setBorder(Border.EMPTY); h.setFont(Font.font("Segoe UI", 12)); return h; }
+
     private String fStyle() { return "-fx-background-color:transparent;-fx-border-color:transparent;-fx-text-fill:" + TEXT + ";-fx-prompt-text-fill:#4a5a7a;-fx-font-size:12;-fx-padding:0 8;"; }
     private String wStyle() { return "-fx-background-color:" + BG_IN + ";-fx-border-color:" + BORDER + ";-fx-border-radius:10;-fx-background-radius:10;"; }
 
