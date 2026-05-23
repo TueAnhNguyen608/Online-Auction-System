@@ -9,10 +9,12 @@ public class User extends Entity {
     private String username;
     private String password;
     private String email;
-    private String role;  // "ADMIN" or "BIDDER"
+    private String role;
     private double balance;
     private LocalDateTime createdAt;
     private boolean isActive;
+    private String fullName;
+    private String phone;
 
     public User() {
         this.setId(java.util.UUID.randomUUID().toString());
@@ -28,6 +30,7 @@ public class User extends Entity {
         this.email = email;
         this.role = role;
     }
+
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
@@ -50,14 +53,14 @@ public class User extends Entity {
     public boolean isAdmin() { return "ADMIN".equals(role); }
     public boolean isBidder() { return "BIDDER".equals(role); }
 
-    @Override
-    public String toString() {
-        return "User{" + username + ", role=" + role + '}';
-    }
-    private String fullName;
-    private String phone;
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
+
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    @Override
+    public String toString() {
+        return "User{" + username + ", role=" + role + ", fullName=" + fullName + ", phone=" + phone + '}';
+    }
 }

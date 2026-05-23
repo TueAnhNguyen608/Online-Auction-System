@@ -19,20 +19,20 @@ public class DataInitializer {
             System.out.println("\nDang tao users...");
 
             // Admin
-            createUser(dbManager, "admin", "admin123", "admin@auction.com", "ADMIN");
+            createUser(dbManager, "admin", "admin123", "admin@auction.com", "ADMIN", "Quản Trị Viên", "0981000001");
 
             // 7 Bidder
-            createUser(dbManager, "bidder1", "123456", "bidder1@email.com", "BIDDER");
-            createUser(dbManager, "bidder2", "123456", "bidder2@email.com", "BIDDER");
-            createUser(dbManager, "bidder3", "123456", "bidder3@email.com", "BIDDER");
-            createUser(dbManager, "bidder4", "123456", "bidder4@email.com", "BIDDER");
-            createUser(dbManager, "bidder5", "123456", "bidder5@email.com", "BIDDER");
-            createUser(dbManager, "bidder6", "123456", "bidder6@email.com", "BIDDER");
-            createUser(dbManager, "bidder7", "123456", "bidder7@email.com", "BIDDER");
+            createUser(dbManager, "bidder1", "123456", "bidder1@email.com", "BIDDER", "Nguyễn Văn An", "0981000002");
+            createUser(dbManager, "bidder2", "123456", "bidder2@email.com", "BIDDER", "Trần Thị Bình", "0981000003");
+            createUser(dbManager, "bidder3", "123456", "bidder3@email.com", "BIDDER", "Lê Văn Cường", "0981000004");
+            createUser(dbManager, "bidder4", "123456", "bidder4@email.com", "BIDDER", "Phạm Thị Dung", "0981000005");
+            createUser(dbManager, "bidder5", "123456", "bidder5@email.com", "BIDDER", "Hoàng Văn Em", "0981000006");
+            createUser(dbManager, "bidder6", "123456", "bidder6@email.com", "BIDDER", "Đặng Thị Phương", "0981000007");
+            createUser(dbManager, "bidder7", "123456", "bidder7@email.com", "BIDDER", "Vũ Văn Giang", "0981000008");
 
             // Sellers
-            createUser(dbManager, "seller1", "123456", "seller1@email.com", "SELLER");
-            createUser(dbManager, "seller2", "123456", "seller2@email.com", "SELLER");
+            createUser(dbManager, "seller1", "123456", "seller1@email.com", "SELLER", "Nguyễn Thị Hà (Seller)", "0981000009");
+            createUser(dbManager, "seller2", "123456", "seller2@email.com", "SELLER", "Trần Văn Hùng (Seller)", "0981000010");
 
             // Tao items
             System.out.println("\nDang tao items...");
@@ -69,15 +69,18 @@ public class DataInitializer {
     }
 
     private static void createUser(DatabaseManager db, String username,
-                                   String password, String email, String role)
+                                   String password, String email, String role,
+                                   String fullName, String phone)
             throws SQLException {
         User user = new User();
         user.setUsername(username);
         user.setPassword(password);
         user.setEmail(email);
         user.setRole(role);
+        user.setFullName(fullName);
+        user.setPhone(phone);
         db.register(user);
-        System.out.println("   User: " + username + " (" + role + ")");
+        System.out.println("   User: " + username + " (" + role + ") - " + fullName);
     }
 
     private static void createItem(DatabaseManager db, String name,
