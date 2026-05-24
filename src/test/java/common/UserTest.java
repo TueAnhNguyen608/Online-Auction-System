@@ -1,7 +1,8 @@
 package common;
 
 import common.model.user.User;
-import org.junit.jupiter.api.*;
+import common.model.user.UserRole;
+import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UserTest {
@@ -10,35 +11,51 @@ class UserTest {
     void testCreateUser() {
         User user = new User();
         user.setUsername("testuser");
-        user.setPassword("123456");
-        user.setEmail("test@email.com");
-        user.setRole("BIDDER");
+        user.setPassword("password123");
+        user.setEmail("test@example.com");
+        user.setRole(UserRole.BIDDER);
+        user.setFullName("Test User");
+        user.setPhone("0123456789");
 
         assertEquals("testuser", user.getUsername());
-        assertEquals("123456", user.getPassword());
-        assertEquals("test@email.com", user.getEmail());
-        assertEquals("BIDDER", user.getRole());
+        assertEquals("password123", user.getPassword());
+        assertEquals("test@example.com", user.getEmail());
+
+        // ✅ SỬA DÒNG NÀY: So sánh với name() thay vì enum trực tiếp
+        assertEquals(UserRole.BIDDER.name(), user.getRole());
+        // Hoặc: assertEquals("BIDDER", user.getRole());
+
+        assertEquals("Test User", user.getFullName());
+        assertEquals("0123456789", user.getPhone());
+        assertTrue(user.isActive());
     }
 
     @Test
-    void testUserIsAdmin() {
-        User admin = new User();
-        admin.setRole("ADMIN");
-        assertTrue(admin.isAdmin());
+    void testUserRole() {
+        User user = new User();
+        user.setRole(UserRole.ADMIN);
+        assertTrue(user.isAdmin());
+        assertFalse(user.isBidder());
+        assertFalse(user.isSeller());
 
-        User bidder = new User();
-        bidder.setRole("BIDDER");
-        assertFalse(bidder.isAdmin());
+        user.setRole(UserRole.BIDDER);
+        assertTrue(user.isBidder());
+        assertFalse(user.isAdmin());
+        assertFalse(user.isSeller());
+
+        user.setRole(UserRole.SELLER);
+        assertTrue(user.isSeller());
+        assertFalse(user.isAdmin());
+        assertFalse(user.isBidder());
     }
 
     @Test
-    void testUserIsBidder() {
-        User bidder = new User();
-        bidder.setRole("BIDDER");
-        assertTrue(bidder.isBidder());
-
-        User admin = new User();
-        admin.setRole("ADMIN");
-        assertFalse(admin.isBidder());
+    void testUserDefaultValues() {
+        User user = new User();
+        assertNotNull(user.getId());
+        assertNotNull(user.getCreatedAt());
+        assertTrue(user.isActive());
+        assertEquals(0.0, user.getBalance());
+        assertEquals(UserRole.BIDDER, user.getRole());
     }
 }
