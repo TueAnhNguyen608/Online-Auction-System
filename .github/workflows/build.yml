@@ -2,17 +2,23 @@ name: Java CI/CD - Auction System
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
   checks: write
+  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: write
+      checks: write
 
     steps:
       - name: Checkout code
@@ -26,6 +32,13 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
       - name: Compile with Maven
         run: mvn clean compile
