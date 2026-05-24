@@ -4,7 +4,13 @@ import client.AuctionClient;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import common.*;
+import common.LocalDateTimeAdapter;
+import common.model.bidding.Bid;
+import common.model.communication.CommandType;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.item.Item;
+import common.model.user.User;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -224,9 +230,12 @@ public class MainDashboardUI implements Initializable {
 
         VBox infoBox = new VBox(10);
         infoBox.setStyle("-fx-background-color: #162550; -fx-background-radius: 8; -fx-padding: 14;");
+
+        // FIX: Sửa dòng user.getRole() -> lấy String
+        String roleStr = user.getRole() != null ? user.getRole().name() : "BIDDER";
         infoBox.getChildren().addAll(
                 infoRow("Tên đăng nhập:", user.getUsername()),
-                infoRow("Vai trò:", user.getRole()),
+                infoRow("Vai trò:", roleStr),
                 infoRow("Số dư:", String.format("%,.0f đ", user.getBalance()).replace(",", "."))
         );
 
@@ -552,8 +561,6 @@ public class MainDashboardUI implements Initializable {
     // ── Navigation ───────────────────────────────────────────────
     @FXML private void onSanPham()      { navigate("/fxml/bidding/ProductListPanel.fxml", "Sản phẩm"); }
     @FXML private void onAutoBid()      { navigate("/fxml/bidding/AutoBidPanel.fxml", "Đấu giá tự động"); }
-
-    // ✅ ĐÃ FIX: Mở MyBidsHistoryUI trực tiếp thay vì tìm FXML không tồn tại
     @FXML private void onLichSu() {
         AuctionClient client = SessionManager.getClient();
         User user = SessionManager.getCurrentUser();
@@ -563,7 +570,6 @@ public class MainDashboardUI implements Initializable {
         }
         new view.history.MyBidsHistoryUI().show(client, user);
     }
-
     @FXML private void onNotification() {
         SessionManager.clearUnreadNotif();
         updateNotifCount(0);

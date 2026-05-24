@@ -1,7 +1,7 @@
 package view.common;
 
 import client.AuctionClient;
-import common.User;
+import common.model.user.User;
 
 import java.util.ArrayList;
 import java.util.List;

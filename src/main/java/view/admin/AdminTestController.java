@@ -1,5 +1,10 @@
 package view.admin;
 
+import common.model.bidding.Bid;
+import common.model.exception.DataValidationException;
+import common.model.item.Item;
+import common.model.item.ItemStatus;
+import common.model.user.User;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
@@ -8,8 +13,9 @@ import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import common.*;
-import server.DatabaseManager;
+import server.repository.BidRepository;
+import server.repository.ItemRepository;
+import server.repository.UserRepository;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -17,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public class AdminTestController {
 
@@ -49,7 +56,11 @@ public class AdminTestController {
 
     private ObservableList<Item> masterList = FXCollections.observableArrayList();
     private FilteredList<Item> filteredList;
-    private DatabaseManager dbManager;
+
+    // ✅ SỬA: Dùng Repository thay vì DatabaseManager
+    private final ItemRepository itemRepo = ItemRepository.getInstance();
+    private final BidRepository bidRepo = BidRepository.getInstance();
+    private final UserRepository userRepo = UserRepository.getInstance();
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter END_TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -67,10 +78,11 @@ public class AdminTestController {
         setupComboBoxes();
         setupFilterListeners();
 
+        // ✅ SỬA: Kiểm tra kết nối DB qua repository
         try {
-            dbManager = DatabaseManager.getInstance();
+            int itemCount = itemRepo.count();
             loadItems();
-            lblStatus.setText("✅ Connected to database");
+            lblStatus.setText("✅ Connected to database (" + itemCount + " items)");
         } catch (SQLException e) {
             lblStatus.setText("❌ Database connection failed: " + e.getMessage());
             e.printStackTrace();
@@ -127,7 +139,7 @@ public class AdminTestController {
                     LocalDateTime endTime = product.getEndTime();
                     String endTimeStr = endTime.format(END_TIME_FORMAT);
 
-                    if ("ACTIVE".equals(product.getStatus())) {
+                    if (product.isActive()) {
                         long hoursLeft = LocalDateTime.now().until(endTime, ChronoUnit.HOURS);
                         if (hoursLeft < 24) {
                             setText(endTimeStr + " ⏰");
@@ -215,7 +227,7 @@ public class AdminTestController {
 
         filteredList.setPredicate(item -> {
             if (!keyword.isEmpty() && !item.getName().toLowerCase().contains(keyword)) return false;
-            if (status != null && !status.equals("Tất cả") && !item.getStatus().equals(status)) return false;
+            if (status != null && !status.equals("Tất cả") && !item.getStatus().name().equals(status)) return false;
             if (priceRange != null && !priceRange.equals("Tất cả")) {
                 double price = item.getCurrentPrice();
                 switch (priceRange) {
@@ -242,7 +254,7 @@ public class AdminTestController {
     private void loadItems() {
         new Thread(() -> {
             try {
-                List<Item> items = dbManager.getAllItems();
+                List<Item> items = itemRepo.findAll();
                 Platform.runLater(() -> {
                     masterList.setAll(items);
                     updateStatusMessage();
@@ -317,26 +329,27 @@ public class AdminTestController {
             if (price <= 0) throw new NumberFormatException();
 
             Item item = new Item();
+            item.setId(UUID.randomUUID().toString());
             item.setName(name);
             item.setDescription(cbCategory.getValue() + " - Sản phẩm chất lượng cao");
             item.setStartingPrice(price);
             item.setCurrentPrice(price);
             item.setStartTime(LocalDateTime.now());
             item.setEndTime(LocalDateTime.now().plusDays(cbDays.getValue()));
-            item.setStatus("ACTIVE");
+            item.setStatus(ItemStatus.ACTIVE);
             item.setSellerName("admin");
             item.setSellerId("admin");
 
             new Thread(() -> {
                 try {
-                    dbManager.createItem(item);
+                    itemRepo.save(item);
                     Platform.runLater(() -> {
                         loadItems();
                         clearForm();
                         showAlert("✅ Thêm thành công!", Alert.AlertType.INFORMATION);
                     });
-                } catch (SQLException | DataValidationException e) {
-                    Platform.runLater(() -> showAlert("❌ Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
+                } catch (SQLException e) {
+                    Platform.runLater(() -> showAlert("❌ Lỗi DB: " + e.getMessage(), Alert.AlertType.ERROR));
                 }
             }).start();
         } catch (NumberFormatException e) {
@@ -370,7 +383,7 @@ public class AdminTestController {
 
             new Thread(() -> {
                 try {
-                    if (dbManager.updateItem(selected)) {
+                    if (itemRepo.update(selected)) {
                         Platform.runLater(() -> {
                             loadItems();
                             clearForm();
@@ -378,7 +391,7 @@ public class AdminTestController {
                         });
                     }
                 } catch (SQLException e) {
-                    Platform.runLater(() -> showAlert("❌ Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
+                    Platform.runLater(() -> showAlert("❌ Lỗi DB: " + e.getMessage(), Alert.AlertType.ERROR));
                 }
             }).start();
         } catch (NumberFormatException e) {
@@ -403,7 +416,7 @@ public class AdminTestController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             new Thread(() -> {
                 try {
-                    if (dbManager.deleteItem(selected.getId())) {
+                    if (itemRepo.deleteById(selected.getId())) {
                         Platform.runLater(() -> {
                             masterList.remove(selected);
                             clearForm();
@@ -423,15 +436,15 @@ public class AdminTestController {
     @FXML private void handleForceEnd() {
         Item selected = tvProducts.getSelectionModel().getSelectedItem();
         if (selected == null) { showAlert("Chọn sản phẩm!", Alert.AlertType.WARNING); return; }
-        if (!"ACTIVE".equals(selected.getStatus())) { showAlert("Chỉ kết thúc phiên đang hoạt động!", Alert.AlertType.WARNING); return; }
+        if (!selected.isActive()) { showAlert("Chỉ kết thúc phiên đang hoạt động!", Alert.AlertType.WARNING); return; }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setContentText("Kết thúc: " + selected.getName() + "?");
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
             new Thread(() -> {
                 try {
-                    dbManager.forceEndAuction(selected.getId());
-                    selected.setStatus("ENDED");
+                    itemRepo.forceEndAuction(selected.getId());
+                    selected.setStatus(ItemStatus.ENDED);
                     Platform.runLater(() -> { tvProducts.refresh(); showAlert("🏁 Đã kết thúc!", Alert.AlertType.INFORMATION); });
                 } catch (SQLException e) {
                     Platform.runLater(() -> showAlert("❌ Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
@@ -445,9 +458,11 @@ public class AdminTestController {
         if (selected == null) { showAlert("Chọn sản phẩm!", Alert.AlertType.WARNING); return; }
         new Thread(() -> {
             try {
-                List<Bid> bids = dbManager.getBidHistory(selected.getId());
+                List<Bid> bids = bidRepo.findByItemId(selected.getId());
                 Platform.runLater(() -> showBidHistoryDialog(selected.getName(), bids));
-            } catch (SQLException e) { Platform.runLater(() -> showAlert("Lỗi: " + e.getMessage(), Alert.AlertType.ERROR)); }
+            } catch (SQLException e) {
+                Platform.runLater(() -> showAlert("Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
+            }
         }).start();
     }
 
@@ -456,19 +471,25 @@ public class AdminTestController {
         if (selected == null) { showAlert("Chọn sản phẩm!", Alert.AlertType.WARNING); return; }
         new Thread(() -> {
             try {
-                User winner = dbManager.getWinner(selected.getId());
+                String winnerName = selected.getCurrentBidderName();
+                double finalPrice = selected.getCurrentPrice();
                 Platform.runLater(() -> {
-                    if (winner != null) showAlert("🏆 " + winner.getUsername() + "\n💰 " + String.format("%,.0f VND", selected.getCurrentPrice()), Alert.AlertType.INFORMATION);
-                    else showAlert("Chưa có lượt đấu!", Alert.AlertType.INFORMATION);
+                    if (winnerName != null && !winnerName.isEmpty()) {
+                        showAlert("🏆 " + winnerName + "\n💰 " + String.format("%,.0f VND", finalPrice), Alert.AlertType.INFORMATION);
+                    } else {
+                        showAlert("Chưa có lượt đấu!", Alert.AlertType.INFORMATION);
+                    }
                 });
-            } catch (SQLException e) { Platform.runLater(() -> showAlert("Lỗi: " + e.getMessage(), Alert.AlertType.ERROR)); }
+            } catch (Exception e) {
+                Platform.runLater(() -> showAlert("Lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
+            }
         }).start();
     }
 
     @FXML private void handleExport() {
         new Thread(() -> {
             try {
-                List<Item> items = dbManager.getAllItems();
+                List<Item> items = itemRepo.findAll();
                 StringBuilder csv = new StringBuilder();
                 csv.append("STT,ID,Tên SP,Giá khởi điểm,Giá hiện tại,Người bán,Trạng thái,Thời gian kết thúc\n");
                 int stt = 1;
@@ -478,8 +499,8 @@ public class AdminTestController {
                     csv.append(item.getName()).append(",");
                     csv.append(item.getStartingPrice()).append(",");
                     csv.append(item.getCurrentPrice()).append(",");
-                    csv.append(item.getSellerName()).append(",");
-                    csv.append(item.getStatus()).append(",");
+                    csv.append(item.getSellerName() != null ? item.getSellerName() : "N/A").append(",");
+                    csv.append(item.getStatus() != null ? item.getStatus().name() : "N/A").append(",");
                     csv.append(item.getEndTime() != null ? item.getEndTime() : "N/A").append("\n");
                 }
                 Platform.runLater(() -> {
@@ -492,7 +513,9 @@ public class AdminTestController {
                     dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
                     dialog.showAndWait();
                 });
-            } catch (SQLException e) { Platform.runLater(() -> showAlert("Xuất lỗi: " + e.getMessage(), Alert.AlertType.ERROR)); }
+            } catch (SQLException e) {
+                Platform.runLater(() -> showAlert("Xuất lỗi: " + e.getMessage(), Alert.AlertType.ERROR));
+            }
         }).start();
     }
 
@@ -500,7 +523,15 @@ public class AdminTestController {
         ListView<String> lv = new ListView<>();
         ObservableList<String> items = FXCollections.observableArrayList();
         if (bids.isEmpty()) items.add("📭 Chưa có lượt đấu giá!");
-        else { for (Bid b : bids) items.add(String.format("💰 %s - %,.0f ₫ (%s)", b.getBidderName(), b.getAmount(), b.getBidTime().format(DateTimeFormatter.ofPattern("HH:mm:ss dd/MM")))); }
+        else {
+            for (Bid b : bids) {
+                String time = b.getBidTime() != null ?
+                        b.getBidTime().format(DateTimeFormatter.ofPattern("HH:mm:ss dd/MM")) : "N/A";
+                items.add(String.format("💰 %s - %,.0f ₫ (%s)",
+                        b.getBidderName() != null ? b.getBidderName() : "N/A",
+                        b.getAmount(), time));
+            }
+        }
         lv.setItems(items);
         Dialog<Void> d = new Dialog<>();
         d.setTitle("📜 Lịch sử - " + itemName);

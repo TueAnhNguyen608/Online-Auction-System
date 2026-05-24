@@ -1,14 +1,15 @@
 package view;
 
 import client.AuctionClient;
-import common.*;
+import common.model.communication.CommandType;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;

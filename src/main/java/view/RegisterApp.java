@@ -1,7 +1,9 @@
 package view;
 
 import client.AuctionClient;
-import common.*;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;

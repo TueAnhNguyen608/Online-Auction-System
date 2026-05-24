@@ -4,6 +4,10 @@ import client.AuctionClient;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import common.*;
+import common.model.bidding.Bid;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -12,7 +16,6 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
 import javafx.util.Duration;
 import view.common.SessionManager;
 

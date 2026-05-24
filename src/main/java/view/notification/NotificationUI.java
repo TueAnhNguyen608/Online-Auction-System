@@ -1,7 +1,11 @@
 package view.notification;
 
 import client.AuctionClient;
-import common.*;
+import common.model.bidding.Bid;
+import common.model.communication.CommandType;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;

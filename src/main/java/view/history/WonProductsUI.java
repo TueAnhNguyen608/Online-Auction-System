@@ -1,10 +1,10 @@
 package view.history;
 
 import client.AuctionClient;
-import common.CommandType;
-import common.ResponseCode;
-import common.ResponseMessage;
-import common.User;
+import common.model.communication.CommandType;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import javafx.application.Platform;

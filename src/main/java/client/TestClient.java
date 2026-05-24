@@ -1,34 +1,39 @@
 package client;
 
-import java.io.*;
-import java.net.*;
-import com.google.gson.Gson;
-import common.*;
+import common.model.communication.ResponseMessage;
 
 public class TestClient {
     public static void main(String[] args) {
+        System.out.println("========== BASIC CONNECTION TEST ==========");
+
         try {
-            System.out.println("1. Đang kết nối tới server...");
-            Socket socket = new Socket("localhost", 9999);
-            System.out.println("2. Kết nối thành công!");
+            AuctionClient client = new AuctionClient();
+            client.connect("localhost", 9999);
+            System.out.println("✅ Connected to server");
 
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            Gson gson = new Gson();
+            // Test login
+            System.out.println("\n[TEST] Login with bidder1/123456...");
+            ResponseMessage loginResp = client.login("bidder1", "123456");
+            System.out.println("   Result: " + loginResp.getCode() + " - " + loginResp.getMessage());
 
-            Object[] loginData = new Object[]{"john", "123456"};
-            Request request = new Request(CommandType.LOGIN, loginData);
-            String jsonRequest = gson.toJson(request);
-            System.out.println("3. Gửi request: " + jsonRequest);
-            out.println(jsonRequest);
+            if (loginResp.getCode().getCode() == 200) {
+                System.out.println("✅ Login successful!");
 
-            System.out.println("4. Đã gửi xong, chờ response...");
-            String response = in.readLine();
-            System.out.println("5. Response: " + response);
+                // Test get active items
+                System.out.println("\n[TEST] Getting active items...");
+                ResponseMessage itemsResp = client.getActiveItems();
+                System.out.println("   Result: " + itemsResp.getMessage());
+                System.out.println("   Data: " + itemsResp.getData());
+            }
 
-            socket.close();
+            client.disconnect();
+            System.out.println("\n✅ Basic connection test completed!");
+
         } catch (Exception e) {
-            System.err.println("LỖI: " + e.getMessage());
+            System.err.println("❌ Test failed: " + e.getMessage());
+            e.printStackTrace();
         }
+
+        System.out.println("============================================");
     }
 }

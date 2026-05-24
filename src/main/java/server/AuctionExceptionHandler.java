@@ -1,6 +1,10 @@
 package server;
 
-import common.*;
+import common.model.communication.ResponseCode;
+import common.model.exception.AuctionClosedException;
+import common.model.exception.AuthenticationException;
+import common.model.exception.DataValidationException;
+import common.model.exception.InvalidBidException;
 
 public class AuctionExceptionHandler {
 

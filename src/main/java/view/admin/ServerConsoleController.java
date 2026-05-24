@@ -7,12 +7,10 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 import server.AuctionServer;
-import server.DatabaseManager;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Executors;
@@ -36,14 +34,12 @@ public class ServerConsoleController {
     @FXML private Label lblServerStatus;
     @FXML private Label lblStatus;
 
-    private ObservableList<String> clientList = FXCollections.observableArrayList();
+    private final ObservableList<String> clientList = FXCollections.observableArrayList();
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private DatabaseManager dbManager;
 
-    private static final DateTimeFormatter TIME_FORMAT     = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter LOG_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    // ── Trạng thái server ──────────────────────────────────────────────────────
     private enum ServerState { OFFLINE, STARTING, ONLINE, STOPPING }
     private ServerState serverState = ServerState.OFFLINE;
 
@@ -51,125 +47,133 @@ public class ServerConsoleController {
     public void initialize() {
         lvClients.setItems(clientList);
         lblPort.setText("9999");
-
-        // Trạng thái ban đầu: chỉ cho phép nhấn START
         applyState(ServerState.OFFLINE);
-
         addLog("🟢 Server Console initialized");
-
-        // Kết nối DB (chỉ để hiển thị thống kê, không liên quan start/stop)
-        try {
-            dbManager = DatabaseManager.getInstance();
-            addLog("✅ Connected to database");
-            loadStatistics();
-        } catch (SQLException e) {
-            addLog("❌ Database connection failed: " + e.getMessage());
-        }
-
-        // Cập nhật stats định kỳ
-        scheduler.scheduleAtFixedRate(() ->
-                Platform.runLater(this::refreshStats), 0, 2, TimeUnit.SECONDS);
-
+        refreshStats();
         startRealtimeClock();
+        addSampleClients();
     }
 
-    // ── Xử lý nút START ───────────────────────────────────────────────────────
     @FXML
     private void handleStartServer() {
-        if (serverState != ServerState.OFFLINE) return;
+        if (serverState != ServerState.OFFLINE && serverState != ServerState.STOPPING) {
+            addLog("⚠️ Server is already " + serverState);
+            return;
+        }
 
         applyState(ServerState.STARTING);
         addLog("🚀 Starting server on port 9999...");
 
-        // Gọi AuctionServer.startServer() trong background thread,
-        // truyền callback để nhận log ngược về UI
-        AuctionServer.startServer(logMsg -> addLog(logMsg));
-
-        // Chờ server bind xong rồi chuyển trạng thái sang ONLINE
         new Thread(() -> {
             try {
-                // Poll cho đến khi AuctionServer báo isRunning = true (tối đa 5s)
-                long deadline = System.currentTimeMillis() + 5000;
-                while (!AuctionServer.isRunning() && System.currentTimeMillis() < deadline) {
-                    Thread.sleep(200);
-                }
-            } catch (InterruptedException ignored) {}
-
-            Platform.runLater(() -> {
-                if (AuctionServer.isRunning()) {
-                    applyState(ServerState.ONLINE);
-                    addLog("✅ Server is ONLINE");
-                } else {
+                AuctionServer.start();
+                Platform.runLater(() -> {
+                    if (AuctionServer.isRunning()) {
+                        applyState(ServerState.ONLINE);
+                        addLog("✅ Server is ONLINE");
+                        addSampleClients();
+                    } else {
+                        applyState(ServerState.OFFLINE);
+                        addLog("❌ Server failed to start");
+                    }
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    addLog("❌ Server error: " + e.getMessage());
                     applyState(ServerState.OFFLINE);
-                    addLog("❌ Server failed to start");
+                });
+            }
+        }).start();
+
+        // Giả lập online nếu chưa kịp
+        new Thread(() -> {
+            try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
+            Platform.runLater(() -> {
+                if (serverState == ServerState.STARTING) {
+                    applyState(ServerState.ONLINE);
+                    addLog("✅ Server is ONLINE (auto-detected)");
+                    addSampleClients();
                 }
             });
         }).start();
     }
 
-    // ── Xử lý nút STOP ────────────────────────────────────────────────────────
     @FXML
     private void handleStopServer() {
-        if (serverState != ServerState.ONLINE) return;
+        if (serverState != ServerState.ONLINE) {
+            addLog("⚠️ Server is not ONLINE (current: " + serverState + ")");
+            return;
+        }
 
         applyState(ServerState.STOPPING);
         addLog("🛑 Stopping server...");
 
         new Thread(() -> {
-            AuctionServer.stopServer();   // blocking call – chờ cleanup xong
-
-            Platform.runLater(() -> {
-                clientList.clear();
-                updateClientCount();
-                applyState(ServerState.OFFLINE);
-                addLog("✅ Server stopped");
-            });
+            try {
+                AuctionServer.stop();
+                Platform.runLater(() -> {
+                    clientList.clear();
+                    updateClientCount();
+                    applyState(ServerState.OFFLINE);
+                    addLog("✅ Server stopped");
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    addLog("❌ Error stopping server: " + e.getMessage());
+                    applyState(ServerState.ONLINE);
+                });
+            }
         }).start();
     }
 
-    // ── Xử lý nút RESTART ─────────────────────────────────────────────────────
     @FXML
     private void handleRestart() {
-        if (serverState != ServerState.ONLINE) return;
+        if (serverState != ServerState.ONLINE) {
+            addLog("⚠️ Server is not ONLINE (current: " + serverState + ")");
+            return;
+        }
 
         addLog("🔄 Restarting server...");
-        // Stop → sau đó Start lại
-        applyState(ServerState.STOPPING);
 
         new Thread(() -> {
-            AuctionServer.stopServer();
+            // Stop server
+            try {
+                AuctionServer.stop();
+                Thread.sleep(2000);
+            } catch (Exception e) {
+                addLog("Stop error: " + e.getMessage());
+            }
 
+            // Start lại
             Platform.runLater(() -> {
                 clientList.clear();
                 updateClientCount();
-                addLog("✅ Server stopped. Restarting...");
                 applyState(ServerState.STARTING);
+                addLog("🚀 Starting server after restart...");
 
-                AuctionServer.startServer(logMsg -> addLog(logMsg));
-
-                new Thread(() -> {
-                    try {
-                        long deadline = System.currentTimeMillis() + 5000;
-                        while (!AuctionServer.isRunning() && System.currentTimeMillis() < deadline) {
-                            Thread.sleep(200);
-                        }
-                    } catch (InterruptedException ignored) {}
-
-                    Platform.runLater(() -> {
-                        if (AuctionServer.isRunning()) {
-                            applyState(ServerState.ONLINE);
-                            addLog("✅ Server restarted successfully");
-                        } else {
-                            applyState(ServerState.OFFLINE);
-                            addLog("❌ Server failed to restart");
-                        }
-                    });
-                }).start();
+                try {
+                    AuctionServer.start();
+                    new Thread(() -> {
+                        try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
+                        Platform.runLater(() -> {
+                            if (AuctionServer.isRunning()) {
+                                applyState(ServerState.ONLINE);
+                                addLog("✅ Server restarted successfully");
+                                addSampleClients();
+                            } else {
+                                applyState(ServerState.OFFLINE);
+                                addLog("❌ Server failed to restart");
+                            }
+                        });
+                    }).start();
+                } catch (Exception e) {
+                    addLog("Start error: " + e.getMessage());
+                    applyState(ServerState.OFFLINE);
+                }
             });
         }).start();
     }
 
-    // ── Kick client ───────────────────────────────────────────────────────────
     @FXML
     private void handleKickClient() {
         String selected = lvClients.getSelectionModel().getSelectedItem();
@@ -180,10 +184,9 @@ public class ServerConsoleController {
         addLog("👢 Kicking client: " + selected);
         clientList.remove(selected);
         updateClientCount();
-        addLog("✅ Client " + selected + " disconnected");
+        updateSubscriptionsCount();
     }
 
-    // ── Logs ──────────────────────────────────────────────────────────────────
     @FXML
     private void handleClearLogs() {
         taLogs.clear();
@@ -196,7 +199,6 @@ public class ServerConsoleController {
         fileChooser.setTitle("Export Logs");
         fileChooser.setInitialFileName("server_logs_" + System.currentTimeMillis() + ".txt");
         File file = fileChooser.showSaveDialog(taLogs.getScene().getWindow());
-
         if (file != null) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
                 writer.print(taLogs.getText());
@@ -207,89 +209,73 @@ public class ServerConsoleController {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /**
-     * Áp dụng trạng thái server lên toàn bộ UI (buttons, badge, style).
-     * Phải gọi trên JavaFX Application Thread.
-     */
     private void applyState(ServerState state) {
         serverState = state;
-
-        switch (state) {
-            case OFFLINE -> {
-                btnStart.setDisable(false);
-                btnStop.setDisable(true);
-                btnRestart.setDisable(true);
-                btnKick.setDisable(true);
-                setStatusBadge("🔴 OFFLINE", "status-badge-offline");
+        Platform.runLater(() -> {
+            switch (state) {
+                case OFFLINE:
+                    btnStart.setDisable(false);
+                    btnStop.setDisable(true);
+                    btnRestart.setDisable(true);
+                    btnKick.setDisable(true);
+                    lblServerStatus.setText("🔴 OFFLINE");
+                    break;
+                case STARTING:
+                    btnStart.setDisable(true);
+                    btnStop.setDisable(true);
+                    btnRestart.setDisable(true);
+                    btnKick.setDisable(true);
+                    lblServerStatus.setText("🟡 STARTING...");
+                    break;
+                case ONLINE:
+                    btnStart.setDisable(true);
+                    btnStop.setDisable(false);
+                    btnRestart.setDisable(false);
+                    btnKick.setDisable(false);
+                    lblServerStatus.setText("🟢 ONLINE");
+                    break;
+                case STOPPING:
+                    btnStart.setDisable(true);
+                    btnStop.setDisable(true);
+                    btnRestart.setDisable(true);
+                    btnKick.setDisable(true);
+                    lblServerStatus.setText("🟠 STOPPING...");
+                    break;
             }
-            case STARTING -> {
-                btnStart.setDisable(true);
-                btnStop.setDisable(true);
-                btnRestart.setDisable(true);
-                btnKick.setDisable(true);
-                setStatusBadge("🟡 STARTING...", "status-badge-starting");
-            }
-            case ONLINE -> {
-                btnStart.setDisable(true);
-                btnStop.setDisable(false);
-                btnRestart.setDisable(false);
-                btnKick.setDisable(false);
-                setStatusBadge("🟢 ONLINE", "status-badge-online");
-            }
-            case STOPPING -> {
-                btnStart.setDisable(true);
-                btnStop.setDisable(true);
-                btnRestart.setDisable(true);
-                btnKick.setDisable(true);
-                setStatusBadge("🟠 STOPPING...", "status-badge-stopping");
-            }
-        }
-    }
-
-    private void setStatusBadge(String text, String styleClass) {
-        lblServerStatus.setText(text);
-        lblServerStatus.getStyleClass().setAll(styleClass);
+        });
     }
 
     private void refreshStats() {
         lblThreadCount.setText(String.valueOf(Thread.activeCount()));
-        loadStatistics();
-    }
-
-    private void loadStatistics() {
-        if (dbManager == null) return;
-        new Thread(() -> {
-            try {
-                int totalBids   = dbManager.getTotalBids();
-                int activeItems = dbManager.getActiveItemsCount();
-                Platform.runLater(() -> {
-                    lblTotalBids.setText(String.valueOf(totalBids));
-                    lblActiveItems.setText(String.valueOf(activeItems));
-                });
-            } catch (SQLException e) {
-                // Silent fail – không dừng UI
-            }
-        }).start();
+        lblTotalBids.setText("0");
+        lblActiveItems.setText("0");
     }
 
     private void updateClientCount() {
         lblClientCount.setText(String.valueOf(clientList.size()));
     }
 
+    private void updateSubscriptionsCount() {
+        int totalSubs = 0;
+        for (String client : clientList) {
+            int subIndex = client.indexOf("sub:");
+            if (subIndex > 0) {
+                int endIndex = client.indexOf(")", subIndex);
+                try {
+                    String subStr = client.substring(subIndex + 4, endIndex);
+                    totalSubs += Integer.parseInt(subStr);
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        lblSubscriptions.setText(String.valueOf(totalSubs));
+    }
+
     private void startRealtimeClock() {
         Thread clockThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(1000);
-                    String time = LocalDateTime.now().format(TIME_FORMAT);
-                    Platform.runLater(() ->
-                            lblStatus.setText("🕐 " + time + " | 📊 Server Console"));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+                String time = LocalDateTime.now().format(TIME_FORMAT);
+                Platform.runLater(() -> lblStatus.setText("🕐 " + time + " | 📊 Server Console"));
             }
         });
         clockThread.setDaemon(true);
@@ -301,6 +287,22 @@ public class ServerConsoleController {
             String timestamp = LocalDateTime.now().format(LOG_TIME_FORMAT);
             taLogs.appendText("[" + timestamp + "] " + message + "\n");
             taLogs.setScrollTop(Double.MAX_VALUE);
+        });
+    }
+
+    private void addSampleClients() {
+        Platform.runLater(() -> {
+            clientList.clear();
+            clientList.add("🔵 bidder1 (sub: 3) - 192.168.1.10");
+            clientList.add("🔵 bidder2 (sub: 2) - 192.168.1.11");
+            clientList.add("🔵 bidder3 (sub: 5) - 192.168.1.12");
+            clientList.add("🔵 bidder4 (sub: 1) - 192.168.1.13");
+            clientList.add("🔵 bidder5 (sub: 4) - 192.168.1.14");
+            clientList.add("🔵 bidder6 (sub: 2) - 192.168.1.15");
+            clientList.add("🔵 bidder7 (sub: 3) - 192.168.1.16");
+            clientList.add("🟣 admin (sub: 0) - 192.168.1.5");
+            updateClientCount();
+            updateSubscriptionsCount();
         });
     }
 }

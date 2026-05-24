@@ -3,10 +3,10 @@ package view;
 import client.AuctionClient;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import common.CommandType;
-import common.ResponseCode;
-import common.ResponseMessage;
-import common.User;
+import common.model.communication.CommandType;
+import common.model.communication.ResponseCode;
+import common.model.communication.ResponseMessage;
+import common.model.user.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -47,7 +47,7 @@ public class SidebarHelper {
         sidebar.setStyle("-fx-background-color:" + BG_SIDEBAR + ";"
                 + "-fx-border-color:" + BORDER + ";-fx-border-width:0 1 0 0;");
 
-        // Logo (tự build, không gọi LoginApp)
+        // Logo
         HBox logo = buildLogo();
         logo.setPadding(new Insets(20, 14, 16, 16));
         logo.setStyle("-fx-border-color:transparent transparent " + BORDER
@@ -70,7 +70,7 @@ public class SidebarHelper {
             } else {
                 btn.setStyle(idleStyle());
                 btn.setOnMouseEntered(e -> btn.setStyle(hoverStyle()));
-                btn.setOnMouseExited(e  -> btn.setStyle(idleStyle()));
+                btn.setOnMouseExited(e -> btn.setStyle(idleStyle()));
             }
             btn.setOnAction(e -> onMenuClick.accept(idx));
             menu.getChildren().add(btn);
@@ -98,7 +98,7 @@ public class SidebarHelper {
         return sidebar;
     }
 
-    // ── Logo tự build (copy từ LoginApp, không phụ thuộc) ────────
+    // ── Logo tự build ────────────────────────────────────────────
     private static HBox buildLogo() {
         HBox logo = new HBox(10);
         logo.setAlignment(Pos.CENTER_LEFT);
@@ -117,15 +117,19 @@ public class SidebarHelper {
         return logo;
     }
 
-    // ── Load ảnh tự build (không gọi LoginApp) ───────────────────
+    // ── Load ảnh ─────────────────────────────────────────────────
     private static ImageView loadImage(String path, double w, double h) {
         try {
             var stream = SidebarHelper.class.getResourceAsStream(path);
             if (stream == null) return null;
             ImageView iv = new ImageView(new Image(stream));
-            iv.setFitWidth(w); iv.setFitHeight(h); iv.setPreserveRatio(true);
+            iv.setFitWidth(w);
+            iv.setFitHeight(h);
+            iv.setPreserveRatio(true);
             return iv;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ── Fetch stats từ server ────────────────────────────────────
@@ -134,13 +138,10 @@ public class SidebarHelper {
         Gson gson = new Gson();
         new Thread(() -> {
             try {
-                ResponseMessage resp =
-                        client.sendRequest(CommandType.GET_MY_BID_HISTORY, null);
+                ResponseMessage resp = client.sendRequest(CommandType.GET_MY_BID_HISTORY, null);
                 if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
-                    java.lang.reflect.Type t =
-                            new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> list =
-                            gson.fromJson(gson.toJson(resp.getData()), t);
+                    var t = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> list = gson.fromJson(gson.toJson(resp.getData()), t);
                     int count = list != null ? list.size() : 0;
                     Platform.runLater(() -> lblBidCount.setText(String.valueOf(count)));
                 }
@@ -149,13 +150,10 @@ public class SidebarHelper {
 
         new Thread(() -> {
             try {
-                ResponseMessage resp =
-                        client.sendRequest(CommandType.GET_WON_PRODUCTS, null);
+                ResponseMessage resp = client.sendRequest(CommandType.GET_WON_PRODUCTS, null);
                 if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
-                    java.lang.reflect.Type t =
-                            new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> list =
-                            gson.fromJson(gson.toJson(resp.getData()), t);
+                    var t = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> list = gson.fromJson(gson.toJson(resp.getData()), t);
                     int count = list != null ? list.size() : 0;
                     Platform.runLater(() -> lblWonCount.setText(String.valueOf(count)));
                 }
@@ -172,13 +170,16 @@ public class SidebarHelper {
 
         // Avatar circle
         StackPane avCircle = new StackPane();
-        avCircle.setPrefSize(64, 64); avCircle.setMaxSize(64, 64);
+        avCircle.setPrefSize(64, 64);
+        avCircle.setMaxSize(64, 64);
         avCircle.setStyle("-fx-background-color:linear-gradient(to bottom right,#2d1b69,#2563eb);"
                 + "-fx-background-radius:32;");
         ImageView avImg = loadImage("/images/avatar.png", 50, 50);
-        if (avImg != null) avCircle.getChildren().add(avImg);
-        else {
-            Label emo = new Label("👤"); emo.setFont(Font.font(26));
+        if (avImg != null) {
+            avCircle.getChildren().add(avImg);
+        } else {
+            Label emo = new Label("👤");
+            emo.setFont(Font.font(26));
             avCircle.getChildren().add(emo);
         }
 
@@ -189,8 +190,12 @@ public class SidebarHelper {
         lblName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         lblName.setTextFill(Color.web(TEXT));
 
-        // Role badge
-        Label lblRole = new Label(formatRole(user != null ? user.getRole() : null));
+        // ✅ FIX: Chuyển UserRole thành String
+        String roleStr = "";
+        if (user != null && user.getRole() != null) {
+            roleStr = user.getRole().name();
+        }
+        Label lblRole = new Label(formatRole(roleStr));
         lblRole.setFont(Font.font("Segoe UI", 11));
         lblRole.setTextFill(Color.web(MUTED));
         lblRole.setStyle("-fx-background-color:rgba(37,99,235,0.12);"
@@ -225,12 +230,16 @@ public class SidebarHelper {
     }
 
     private static String formatRole(String role) {
-        if (role == null) return "";
+        if (role == null || role.isEmpty()) return "";
         switch (role.toUpperCase()) {
-            case "ADMIN":  return "Quản trị viên";
-            case "SELLER": return "Người bán";
-            case "BIDDER": return "Người đấu giá";
-            default:       return role;
+            case "ADMIN":
+                return "Quản trị viên";
+            case "SELLER":
+                return "Người bán";
+            case "BIDDER":
+                return "Người đấu giá";
+            default:
+                return role;
         }
     }
 
@@ -239,11 +248,13 @@ public class SidebarHelper {
                 + "-fx-background-radius:10;-fx-border-color:transparent;"
                 + "-fx-alignment:CENTER_LEFT;-fx-padding:0 14;";
     }
+
     private static String idleStyle() {
         return "-fx-background-color:transparent;-fx-text-fill:#8899bb;"
                 + "-fx-background-radius:10;-fx-border-color:transparent;"
                 + "-fx-alignment:CENTER_LEFT;-fx-padding:0 14;";
     }
+
     private static String hoverStyle() {
         return "-fx-background-color:rgba(255,255,255,0.05);-fx-text-fill:#f0f4ff;"
                 + "-fx-background-radius:10;-fx-border-color:transparent;"

@@ -1,5 +1,6 @@
 package common;
 
+import common.model.bidding.Bid;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 

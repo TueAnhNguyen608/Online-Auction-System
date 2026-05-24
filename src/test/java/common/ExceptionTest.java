@@ -1,5 +1,9 @@
 package common;
 
+import common.model.exception.AuctionClosedException;
+import common.model.exception.AuthenticationException;
+import common.model.exception.DataValidationException;
+import common.model.exception.InvalidBidException;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -1,7 +1,7 @@
 package view.notification;
 
 import client.AuctionClient;
-import common.*;
+import common.model.event.PriceUpdateEvent;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
