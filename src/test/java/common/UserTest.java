@@ -21,9 +21,8 @@ class UserTest {
         assertEquals("password123", user.getPassword());
         assertEquals("test@example.com", user.getEmail());
 
-        // ✅ SỬA DÒNG NÀY: So sánh với name() thay vì enum trực tiếp
-        assertEquals(UserRole.BIDDER.name(), user.getRole());
-        // Hoặc: assertEquals("BIDDER", user.getRole());
+        // ✅ SỬA: So sánh enum với enum
+        assertEquals(UserRole.BIDDER, user.getRole());
 
         assertEquals("Test User", user.getFullName());
         assertEquals("0123456789", user.getPhone());
