@@ -57,7 +57,14 @@ CREATE TABLE IF NOT EXISTS auto_bid_settings (
     PRIMARY KEY (user_id, item_id)
     );
 
--- Foreign keys (cho H2)
+-- ========== DỮ LIỆU TEST USERS ==========
+INSERT INTO users (id, username, password, email, role, balance, full_name, phone) VALUES
+                                                                                       ('test_seller', 'seller1', '123456', 'seller1@test.com', 'SELLER', 0, 'Test Seller', '0981000001'),
+                                                                                       ('test_bidder_1', 'bidder1', '123456', 'bidder1@test.com', 'BIDDER', 10000000, 'Test Bidder 1', '0981000002'),
+                                                                                       ('test_bidder_2', 'bidder2', '123456', 'bidder2@test.com', 'BIDDER', 10000000, 'Test Bidder 2', '0981000003'),
+                                                                                       ('test_bidder_3', 'bidder3', '123456', 'bidder3@test.com', 'BIDDER', 10000000, 'Test Bidder 3', '0981000004');
+
+-- Foreign keys
 ALTER TABLE items ADD CONSTRAINT IF NOT EXISTS fk_items_seller FOREIGN KEY (seller_id) REFERENCES users(id);
 ALTER TABLE bids ADD CONSTRAINT IF NOT EXISTS fk_bids_item FOREIGN KEY (item_id) REFERENCES items(id);
 ALTER TABLE bids ADD CONSTRAINT IF NOT EXISTS fk_bids_bidder FOREIGN KEY (bidder_id) REFERENCES users(id);
@@ -69,4 +76,4 @@ CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_end_time ON items(end_time);
 CREATE INDEX IF NOT EXISTS idx_bids_item_id ON bids(item_id);
 CREATE INDEX IF NOT EXISTS idx_bids_bidder_id ON bids(bidder_id);
-CREATE INDEX IF NOT EXISTS idx_auto_user_item ON auto_bid_settings(user_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_auto_user_item ON auto_bid_settings(user_id, item_id););
