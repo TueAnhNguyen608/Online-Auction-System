@@ -46,7 +46,6 @@ public class EventBroadcaster {
         }
     }
 
-    // 🔥 THÊM METHOD NÀY: xóa client khỏi tất cả subscriptions khi disconnect
     public void cleanupClient(ClientConnectionHandler handler) {
         if (handler == null) return;
         int removedCount = 0;

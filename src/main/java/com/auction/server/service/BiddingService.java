@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 public class BiddingService {
 
+    private static final double MAX_BID_AMOUNT = 1_000_000_000_000L;
     private static volatile BiddingService instance;
     private final ItemRepository itemRepo;
     private final BidRepository bidRepo;
@@ -49,6 +50,14 @@ public class BiddingService {
     }
 
     public BidResult placeBid(Bid bid) throws Exception {
+        if (bid.getAmount() > MAX_BID_AMOUNT) {
+            throw new InvalidBidException("Giá đặt không được vượt quá " + String.format("%,.0f", MAX_BID_AMOUNT) + " VND");
+        }
+
+        if (bid.getAmount() <= 0) {
+            throw new InvalidBidException("Giá đặt phải lớn hơn 0");
+        }
+
         ReentrantLock lock = itemLocks.computeIfAbsent(bid.getItemId(), k -> new ReentrantLock());
         lock.lock();
 
@@ -100,7 +109,6 @@ public class BiddingService {
             itemRepo.updateCurrentPrice(bid.getItemId(), bid.getAmount(),
                     bid.getBidderId(), bid.getBidderName());
 
-            // Refresh item để lấy thông tin mới nhất
             item = itemRepo.findById(bid.getItemId()).orElse(item);
 
             long newRemaining = Math.max(0, item.getSecondsRemaining());
@@ -165,6 +173,11 @@ public class BiddingService {
 
             if (bidAmount <= currentPrice) break;
 
+            if (bidAmount > MAX_BID_AMOUNT) {
+                System.err.println("⚠️ Auto-bid amount exceeds max limit: " + bidAmount);
+                break;
+            }
+
             System.out.println("🤖 Auto-bid kích hoạt: " + nextBidderName + " đặt " + String.format("%,.0f", bidAmount) + " VND");
 
             Bid autoBid = new Bid();
@@ -179,7 +192,6 @@ public class BiddingService {
             bidRepo.save(autoBid);
             itemRepo.updateCurrentPrice(itemId, bidAmount, nextBidderId, nextBidderName);
 
-            // Refresh item
             item = itemRepo.findById(itemId).orElse(item);
 
             PriceUpdateEvent event = new PriceUpdateEvent(
@@ -202,10 +214,6 @@ public class BiddingService {
         return bidRepo.findByBidderId(userId);
     }
 
-    /**
-     * Lấy danh sách sản phẩm đã thắng đấu giá của người dùng
-     * Chỉ trả về các item có status = ENDED và người dùng là người trả giá cao nhất
-     */
     public List<Item> getWonProducts(String userId) throws SQLException {
         if (userId == null || userId.trim().isEmpty()) {
             return new ArrayList<>();
@@ -216,38 +224,8 @@ public class BiddingService {
         return allItems.stream()
                 .filter(item -> item.getStatus() == ItemStatus.ENDED)
                 .filter(item -> userId.equals(item.getCurrentBidderId()))
-                .sorted((a, b) -> b.getEndTime().compareTo(a.getEndTime())) // Mới nhất lên đầu
+                .sorted((a, b) -> b.getEndTime().compareTo(a.getEndTime()))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Lấy danh sách sản phẩm đã thắng đấu giá kèm thông tin chi tiết
-     */
-    public List<Map<String, Object>> getWonProductsWithDetails(String userId) throws SQLException {
-        if (userId == null || userId.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        List<Item> wonItems = getWonProducts(userId);
-        List<Map<String, Object>> result = new ArrayList<>();
-
-        for (Item item : wonItems) {
-            Map<String, Object> detail = new HashMap<>();
-            detail.put("itemId", item.getId());
-            detail.put("itemName", item.getName());
-            detail.put("description", item.getDescription());
-            detail.put("finalPrice", item.getCurrentPrice());
-            detail.put("endTime", item.getEndTime());
-            detail.put("sellerName", item.getSellerName());
-
-            // Lấy số lượng bid của item này
-            int bidCount = bidRepo.countByItemId(item.getId());
-            detail.put("totalBids", bidCount);
-
-            result.add(detail);
-        }
-
-        return result;
     }
 
     public List<PricePoint> getPriceHistory(String itemId) throws SQLException {
@@ -264,7 +242,6 @@ public class BiddingService {
             );
         }
 
-        // Sắp xếp theo thời gian tăng dần
         points.sort((a, b) -> a.getTime().compareTo(b.getTime()));
 
         return points;
@@ -275,6 +252,9 @@ public class BiddingService {
     }
 
     public boolean setAutoBid(String userId, String itemId, double maxAmount) throws SQLException {
+        if (maxAmount > MAX_BID_AMOUNT) {
+            return false;
+        }
         Optional<Item> item = itemRepo.findById(itemId);
         if (item.isEmpty()) {
             return false;
@@ -285,9 +265,6 @@ public class BiddingService {
         return autoBidRepo.setAutoBid(userId, itemId, maxAmount);
     }
 
-    /**
-     * Kiểm tra xem người dùng có thắng một item cụ thể không
-     */
     public boolean isWinner(String userId, String itemId) throws SQLException {
         Optional<Item> item = itemRepo.findById(itemId);
         if (item.isEmpty()) {
@@ -297,9 +274,6 @@ public class BiddingService {
                 userId.equals(item.get().getCurrentBidderId());
     }
 
-    /**
-     * Lấy tổng số tiền đã chi cho các sản phẩm đã thắng
-     */
     public double getTotalSpent(String userId) throws SQLException {
         List<Item> wonItems = getWonProducts(userId);
         return wonItems.stream()

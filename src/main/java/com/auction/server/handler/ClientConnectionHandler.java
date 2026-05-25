@@ -50,7 +50,6 @@ public class ClientConnectionHandler implements Runnable {
                 try {
                     Request request = gson.fromJson(line, Request.class);
 
-                    // 🔥 THÊM: lấy dispatcher và gửi kèm this (client handler)
                     RequestDispatcher dispatcher = RequestDispatcher.getInstance();
                     ResponseMessage response = dispatcher.dispatch(request, this);
 
@@ -60,6 +59,8 @@ public class ClientConnectionHandler implements Runnable {
                     out.flush();
 
                     if (request.getCommand() == CommandType.LOGOUT) {
+                        EventBroadcaster.getInstance().cleanupClient(this);
+                        System.out.println("📡 User " + currentUsername + " logged out, cleaned up subscriptions");
                         break;
                     }
                 } catch (Exception e) {
@@ -72,7 +73,6 @@ public class ClientConnectionHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("Client disconnected: " + e.getMessage());
         } finally {
-            // 🔥 THÊM: cleanup subscriptions khi disconnect
             EventBroadcaster.getInstance().cleanupClient(this);
             try { socket.close(); } catch (IOException e) {}
         }

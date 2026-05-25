@@ -26,7 +26,7 @@ public class DatabaseConnectionPool {
 
         if (isCiEnvironment) {
             // Dùng H2 in-memory cho CI/CD và test
-            this.url = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL;INIT=RUNSCRIPT FROM 'classpath:schema.sql'";
+            this.url = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL";
             this.username = "sa";
             this.password = "";
             this.poolSize = 5;
@@ -48,7 +48,6 @@ public class DatabaseConnectionPool {
             System.out.println("✅ H2 Driver loaded");
         } catch (ClassNotFoundException e) {
             // Không sao nếu không có H2 (production)
-            System.out.println("⚠️ H2 Driver not found (not needed for production)");
         }
 
         // Load MySQL driver
@@ -90,7 +89,6 @@ public class DatabaseConnectionPool {
         if (successCount > 0) {
             isInitialized = true;
             System.out.println("✅ Database connection pool initialized with " + successCount + "/" + poolSize + " connections");
-            System.out.println("   URL: " + url);
         } else {
             System.err.println("❌ Failed to initialize database connection pool!");
         }
@@ -116,13 +114,23 @@ public class DatabaseConnectionPool {
     public void returnConnection(Connection conn) {
         if (conn != null) {
             try {
-                if (!conn.isClosed() && connectionPool.size() < poolSize) {
-                    connectionPool.offer(conn);
-                } else if (!conn.isClosed()) {
-                    conn.close();
+                // Reset connection before returning to pool
+                if (!conn.isClosed()) {
+                    conn.setAutoCommit(true);
+                    conn.rollback();
+                    if (connectionPool.size() < poolSize) {
+                        connectionPool.offer(conn);
+                    } else {
+                        conn.close();
+                    }
                 }
             } catch (SQLException e) {
                 System.err.println("Error returning connection: " + e.getMessage());
+                try {
+                    conn.close();
+                } catch (SQLException ex) {
+                    // Ignore
+                }
             }
         }
     }
