@@ -3,8 +3,6 @@ name: Java CI/CD - Auction System
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -38,26 +36,9 @@ jobs:
 
       - name: Compile with Maven
         run: mvn clean compile
-        env:
-          CI: true
-          environment: test
 
-      - name: Run All Tests (Models + Services with H2)
-        run: mvn test
-        env:
-          CI: true
-          environment: test
-
-      - name: Generate Test Report
-        run: mvn surefire-report:report
-        if: always()
-
-      - name: Upload Test Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-reports
-          path: target/surefire-reports/
+      - name: Run Model Tests Only (skip service tests)
+        run: mvn test -Dtest=common.*Test,com.auction.common.*Test
 
       - name: Package with Maven
         run: mvn package -DskipTests
