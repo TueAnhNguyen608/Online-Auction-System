@@ -48,6 +48,14 @@
             <version>9.1.0</version>
         </dependency>
 
+        <!-- H2 Database for Testing (in-memory) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Apache Commons DBCP2 - Connection Pool -->
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -80,8 +88,6 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <!-- 🔥 THÊM DEPENDENCY NÀY CHO PARAMETERIZED TESTS -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>

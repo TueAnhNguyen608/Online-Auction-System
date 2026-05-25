@@ -19,18 +19,44 @@ public class DatabaseConnectionPool {
     private boolean isInitialized = false;
 
     private DatabaseConnectionPool() {
-        this.url = AuctionConstants.DB_URL;
-        this.username = AuctionConstants.DB_USER;
-        this.password = AuctionConstants.DB_PASSWORD;
-        this.poolSize = AuctionConstants.DB_POOL_SIZE;
+        // Kiểm tra môi trường CI/CD hoặc test
+        boolean isCiEnvironment = "true".equals(System.getenv("CI")) ||
+                "test".equals(System.getProperty("environment")) ||
+                System.getenv("GITHUB_ACTIONS") != null;
+
+        if (isCiEnvironment) {
+            // Dùng H2 in-memory cho CI/CD và test
+            this.url = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL;INIT=RUNSCRIPT FROM 'classpath:schema.sql'";
+            this.username = "sa";
+            this.password = "";
+            this.poolSize = 5;
+            System.out.println("✅ Using H2 in-memory database for CI/CD/Test environment");
+        } else {
+            // Dùng MySQL cho production
+            this.url = AuctionConstants.DB_URL;
+            this.username = AuctionConstants.DB_USER;
+            this.password = AuctionConstants.DB_PASSWORD;
+            this.poolSize = AuctionConstants.DB_POOL_SIZE;
+            System.out.println("✅ Using MySQL database for production environment");
+        }
+
         this.connectionPool = new LinkedBlockingQueue<>(poolSize);
 
+        // Load H2 driver (cho test)
+        try {
+            Class.forName("org.h2.Driver");
+            System.out.println("✅ H2 Driver loaded");
+        } catch (ClassNotFoundException e) {
+            // Không sao nếu không có H2 (production)
+            System.out.println("⚠️ H2 Driver not found (not needed for production)");
+        }
+
+        // Load MySQL driver
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            System.out.println("✅ MySQL Driver loaded successfully");
+            System.out.println("✅ MySQL Driver loaded");
         } catch (ClassNotFoundException e) {
             System.err.println("❌ MySQL Driver not found!");
-            e.printStackTrace();
         }
 
         initializePool();
@@ -64,6 +90,7 @@ public class DatabaseConnectionPool {
         if (successCount > 0) {
             isInitialized = true;
             System.out.println("✅ Database connection pool initialized with " + successCount + "/" + poolSize + " connections");
+            System.out.println("   URL: " + url);
         } else {
             System.err.println("❌ Failed to initialize database connection pool!");
         }
