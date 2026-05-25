@@ -17,7 +17,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane minHeight="650" minWidth="960" style="-fx-background-color: #0c1535;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.bidding.ProductDetailPanel">
+<BorderPane minHeight="650" minWidth="960" style="-fx-background-color: #0c1535;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.ui.bidding.ProductDetailPanel">
 
     <!-- ===== TOP ===== -->
     <top>

@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane minHeight="600" minWidth="900" style="-fx-background-color: #0e1c40;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.bidding.ProductListPanel">
+<BorderPane minHeight="600" minWidth="900" style="-fx-background-color: #0e1c40;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.ui.bidding.ProductListPanel">
 
     <!-- ===== HEADER + TAB BAR ===== -->
     <top>

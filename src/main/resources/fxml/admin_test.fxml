@@ -5,7 +5,7 @@
 
 <VBox spacing="15" xmlns="http://javafx.com/javafx/21"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="view.admin.AdminTestController"
+      fx:controller="com.auction.ui.admin.AdminTestController"
       styleClass="root"
       alignment="TOP_CENTER">
 

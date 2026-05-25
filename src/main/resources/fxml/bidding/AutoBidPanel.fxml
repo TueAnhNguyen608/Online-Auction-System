@@ -19,7 +19,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane style="-fx-background-color: #0c1535;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.bidding.AutoBidPanel">
+<BorderPane style="-fx-background-color: #0c1535;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.ui.bidding.AutoBidPanel">
 
     <top>
         <VBox style="-fx-background-color: #0c1535;">

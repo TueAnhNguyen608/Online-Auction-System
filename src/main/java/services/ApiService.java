@@ -1,6 +1,6 @@
 package services;
 
-import view.AppConfig;
+import com.auction.ui.config.AppConfig;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -12,7 +12,8 @@ import java.nio.charset.StandardCharsets;
  * Lớp chịu trách nhiệm giao tiếp với Server qua REST API.
  * Phiên bản tương thích hoàn toàn với Java 8 (Sử dụng HttpURLConnection).
  */
-public class ApiService {
+public class
+ApiService {
 
     private static ApiService instance;
 

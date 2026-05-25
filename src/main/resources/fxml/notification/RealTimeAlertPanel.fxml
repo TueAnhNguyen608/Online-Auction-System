@@ -11,7 +11,7 @@
 <VBox fx:id="rootBox"
       xmlns="http://javafx.com/javafx/26"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="view.notification.RealTimeAlertPanel"
+      fx:controller="com.auction.ui.notification.RealTimeAlertPanel"
       prefWidth="340"
       spacing="0"
       style="-fx-background-color: transparent; -fx-padding: 6;">

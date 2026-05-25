@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="766.0" prefWidth="1158.0" styleClass="root-pane" stylesheets="@../../css/bidding_style.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.bidding.MainDashboardUI">
+<BorderPane prefHeight="766.0" prefWidth="1158.0" styleClass="root-pane" stylesheets="@../../css/bidding_style.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.ui.bidding.MainDashboardUI">
 
     <top>
         <HBox alignment="CENTER_LEFT" prefHeight="75.0" prefWidth="1131.0" styleClass="navbar">
