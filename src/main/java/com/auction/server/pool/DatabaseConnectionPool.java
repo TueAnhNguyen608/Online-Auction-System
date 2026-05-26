@@ -19,36 +19,14 @@ public class DatabaseConnectionPool {
     private boolean isInitialized = false;
 
     private DatabaseConnectionPool() {
-        // Kiểm tra môi trường CI/CD hoặc test
-        boolean isCiEnvironment = "true".equals(System.getenv("CI")) ||
-                "test".equals(System.getProperty("environment")) ||
-                System.getenv("GITHUB_ACTIONS") != null;
-
-        if (isCiEnvironment) {
-            // Dùng H2 in-memory cho CI/CD và test
-            this.url = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL";
-            this.username = "sa";
-            this.password = "";
-            this.poolSize = 5;
-            System.out.println("✅ Using H2 in-memory database for CI/CD/Test environment");
-        } else {
-            // Dùng MySQL cho production
-            this.url = AuctionConstants.DB_URL;
-            this.username = AuctionConstants.DB_USER;
-            this.password = AuctionConstants.DB_PASSWORD;
-            this.poolSize = AuctionConstants.DB_POOL_SIZE;
-            System.out.println("✅ Using MySQL database for production environment");
-        }
+        // 🔥 CHỈ DÙNG MYSQL - BỎ H2 HOÀN TOÀN
+        this.url = AuctionConstants.DB_URL;
+        this.username = AuctionConstants.DB_USER;
+        this.password = AuctionConstants.DB_PASSWORD;
+        this.poolSize = AuctionConstants.DB_POOL_SIZE;
+        System.out.println("✅ Using MySQL database");
 
         this.connectionPool = new LinkedBlockingQueue<>(poolSize);
-
-        // Load H2 driver (cho test)
-        try {
-            Class.forName("org.h2.Driver");
-            System.out.println("✅ H2 Driver loaded");
-        } catch (ClassNotFoundException e) {
-            // Không sao nếu không có H2 (production)
-        }
 
         // Load MySQL driver
         try {
@@ -114,7 +92,6 @@ public class DatabaseConnectionPool {
     public void returnConnection(Connection conn) {
         if (conn != null) {
             try {
-                // Reset connection before returning to pool
                 if (!conn.isClosed()) {
                     conn.setAutoCommit(true);
                     conn.rollback();

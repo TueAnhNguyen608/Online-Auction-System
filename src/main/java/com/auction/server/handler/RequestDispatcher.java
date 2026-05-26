@@ -5,7 +5,7 @@ import com.auction.common.model.communication.Request;
 import com.auction.common.model.communication.ResponseMessage;
 import com.auction.common.model.communication.ResponseCode;
 import com.auction.common.model.user.User;
-import com.auction.server.AuctionExceptionHandler;
+import com.auction.server.exception.AuctionExceptionHandler;
 import com.auction.server.handler.impl.*;
 
 import java.util.EnumMap;

@@ -1,4 +1,4 @@
-package com.auction.server;
+package com.auction.server.exception;
 
 import com.auction.common.model.communication.ResponseCode;
 import com.auction.common.model.exception.AuctionClosedException;

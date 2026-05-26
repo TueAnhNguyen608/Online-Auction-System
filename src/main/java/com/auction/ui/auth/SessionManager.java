@@ -1,6 +1,7 @@
 package com.auction.ui.auth;
 
 import com.auction.client.AuctionClient;
+import com.auction.common.model.item.Item;
 import com.auction.common.model.user.User;
 
 import java.util.ArrayList;
@@ -11,6 +12,29 @@ public class SessionManager {
     private static AuctionClient client;
     private static final List<User> savedAccounts = new ArrayList<>();
     private static int unreadNotifCount = 0;
+
+    // ========== CACHE CHO PRODUCT LIST ==========
+    private static List<Item> cachedItems = null;
+    private static long lastFetchTime = 0;
+    private static final long CACHE_DURATION_MS = 60000; // 1 phút
+
+    public static List<Item> getCachedItems() {
+        long now = System.currentTimeMillis();
+        if (cachedItems == null || (now - lastFetchTime) > CACHE_DURATION_MS) {
+            return null;
+        }
+        return cachedItems;
+    }
+
+    public static void setCachedItems(List<Item> items) {
+        cachedItems = items;
+        lastFetchTime = System.currentTimeMillis();
+    }
+
+    public static void clearCache() {
+        cachedItems = null;
+        lastFetchTime = 0;
+    }
 
     private static final java.util.Map<String, java.util.List<AutoBidCache>>
             autoBidCache = new java.util.HashMap<>();
@@ -157,5 +181,6 @@ public class SessionManager {
         client           = null;
         unreadNotifCount = 0;
         realtimeNotifs.clear();
+        clearCache(); // Xoá cache khi logout
     }
 }

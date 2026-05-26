@@ -5,7 +5,6 @@ import com.auction.common.model.item.Item;
 import com.auction.common.model.item.ItemStatus;
 import com.auction.common.model.user.User;
 import com.auction.common.model.user.UserRole;
-import com.auction.common.util.PasswordUtil;
 import com.auction.server.repository.ItemRepository;
 import com.auction.server.repository.UserRepository;
 
@@ -29,6 +28,7 @@ public class DataInitializer {
 
             System.out.println("\nDang tao users...");
 
+            // 🔥 SỬA: Dùng plain text password (không hash)
             createUser("admin", "admin123", "admin@auction.com", UserRole.ADMIN, "Quản Trị Viên", "0981000001");
 
             createUser("bidder1", "123456", "bidder1@email.com", UserRole.BIDDER, "Nguyễn Văn An", "0981000002");
@@ -89,7 +89,8 @@ public class DataInitializer {
 
         User user = new User();
         user.setUsername(username);
-        user.setPassword(PasswordUtil.hash(password));
+        // 🔥 SỬA: Lưu plain text password (không hash)
+        user.setPassword(password);
         user.setEmail(email);
         user.setRole(role);
         user.setFullName(fullName);

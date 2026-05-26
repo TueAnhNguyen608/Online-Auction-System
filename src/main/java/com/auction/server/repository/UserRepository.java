@@ -2,7 +2,6 @@ package com.auction.server.repository;
 
 import com.auction.common.model.user.User;
 import com.auction.common.model.user.UserRole;
-import com.auction.common.util.PasswordUtil;
 import com.auction.server.pool.DatabaseConnectionPool;
 import java.sql.*;
 import java.util.ArrayList;
@@ -31,7 +30,8 @@ public class UserRepository {
 
     public User findByUsernameAndPassword(String username, String password) throws SQLException {
         User user = findByUsername(username);
-        if (user != null && PasswordUtil.verify(password, user.getPassword())) {
+        // 🔥 SO SÁNH PLAIN TEXT (KHÔNG HASH)
+        if (user != null && password.equals(user.getPassword())) {
             return user;
         }
         return null;
@@ -148,7 +148,8 @@ public class UserRepository {
     public boolean verifyPassword(String userId, String password) throws SQLException {
         User user = findById(userId);
         if (user == null) return false;
-        return PasswordUtil.verify(password, user.getPassword());
+        // 🔥 SO SÁNH PLAIN TEXT
+        return password.equals(user.getPassword());
     }
 
     public boolean deleteById(String id) throws SQLException {

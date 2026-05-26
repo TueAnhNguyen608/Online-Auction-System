@@ -16,16 +16,17 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;        // ✅ THÊM IMPORT NÀY
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.Parent;           // ✅ THÊM IMPORT NÀY
-import javafx.scene.Scene;            // ✅ THÊM IMPORT NÀY
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.stage.Stage;            // ✅ THÊM IMPORT NÀY
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import com.auction.ui.auth.SessionManager;
 
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -159,50 +160,87 @@ public class ProductListPanel implements Initializable {
         }));
     }
 
+    // 🔥 PHƯƠNG THỨC LOAD DỮ LIỆU CÓ CACHE
     private void loadData() {
         new Thread(() -> {
             try {
+                // KIỂM TRA CACHE TRƯỚC
+                List<Item> cached = SessionManager.getCachedItems();
+                if (cached != null && !cached.isEmpty()) {
+                    System.out.println("✅ Dùng cache, hiển thị nhanh");
+                    updateUIWithItems(cached);
+                    return;
+                }
+
                 AuctionClient client = SessionManager.getClient();
-                if (client == null) throw new Exception("Chưa có kết nối server");
+                if (client == null) {
+                    System.out.println("❌ ProductListPanel: Client is NULL!");
+                    Platform.runLater(() -> {
+                        tableProducts.setPlaceholder(new Label("❌ Chưa kết nối được đến server"));
+                    });
+                    return;
+                }
+
+                System.out.println("📡 Đang gọi getActiveItems...");
                 ResponseMessage resp = client.getActiveItems();
-                if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
-                    java.lang.reflect.Type listType = new TypeToken<List<Item>>(){}.getType();
-                    List<Item> items = gson.fromJson(gson.toJson(resp.getData()), listType);
+                System.out.println("📥 Response code: " + (resp != null ? resp.getCode() : "null"));
+
+                if (resp != null && resp.getCode() == ResponseCode.SUCCESS && resp.getData() != null) {
+                    System.out.println("📥 Response data: " + resp.getData());
+
+                    String json = gson.toJson(resp.getData());
+                    Type listType = new TypeToken<ArrayList<Item>>(){}.getType();
+                    List<Item> items = gson.fromJson(json, listType);
+
                     if (items != null && !items.isEmpty()) {
-                        List<ProductRow> rows = new ArrayList<>();
-                        for (int i = 0; i < items.size(); i++) {
-                            Item item = items.get(i);
-                            long remaining = 0;
-                            if (item.getEndTime() != null) {
-                                remaining = java.time.Duration.between(
-                                        LocalDateTime.now(), item.getEndTime()).getSeconds();
-                                if (remaining < 0) remaining = 0;
-                            }
-                            ProductRow row = new ProductRow(
-                                    i + 1,
-                                    item.getName(),
-                                    (long) item.getCurrentPrice(),
-                                    item.getSellerName() != null ? item.getSellerName() : "N/A",
-                                    remaining
-                            );
-                            row.setItemId(item.getId());
-                            rows.add(row);
-                        }
+                        System.out.println("✅ Loaded " + items.size() + " sản phẩm từ server");
+                        // LƯU VÀO CACHE
+                        SessionManager.setCachedItems(items);
+                        updateUIWithItems(items);
+                    } else {
+                        System.out.println("⚠️ Không có sản phẩm nào từ server!");
                         Platform.runLater(() -> {
-                            allProducts.clear();
-                            allProducts.addAll(rows);
-                            filteredProducts = new ArrayList<>(allProducts);
-                            updateTable();
-                            System.out.println("✅ Loaded " + rows.size() + " sản phẩm từ server");
+                            tableProducts.setPlaceholder(new Label("📭 Không có sản phẩm nào"));
                         });
-                        return;
                     }
+                } else {
+                    System.out.println("❌ Lỗi từ server: " + (resp != null ? resp.getMessage() : "null response"));
+                    Platform.runLater(() -> {
+                        tableProducts.setPlaceholder(new Label("❌ Lỗi tải dữ liệu: " + (resp != null ? resp.getMessage() : "Không có phản hồi")));
+                    });
                 }
             } catch (Exception e) {
-                System.out.println("⚠ Không lấy được dữ liệu server, dùng dữ liệu mẫu: " + e.getMessage());
+                System.out.println("❌ Exception khi load data: " + e.getMessage());
+                e.printStackTrace();
+                Platform.runLater(() -> {
+                    tableProducts.setPlaceholder(new Label("❌ Lỗi: " + e.getMessage()));
+                });
             }
-            Platform.runLater(this::loadSampleData);
         }).start();
+    }
+
+    // 🔥 PHƯƠNG THỨC CẬP NHẬT UI TỪ DANH SÁCH ITEMS
+    private void updateUIWithItems(List<Item> items) {
+        List<ProductRow> rows = new ArrayList<>();
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            long remaining = 0;
+            if (item.getEndTime() != null) {
+                remaining = java.time.Duration.between(LocalDateTime.now(), item.getEndTime()).getSeconds();
+                if (remaining < 0) remaining = 0;
+            }
+            ProductRow row = new ProductRow(i + 1, item.getName(), (long) item.getCurrentPrice(),
+                    item.getSellerName() != null ? item.getSellerName() : "N/A", remaining);
+            row.setItemId(item.getId());
+            rows.add(row);
+        }
+        final List<ProductRow> finalRows = rows;
+        Platform.runLater(() -> {
+            allProducts.clear();
+            allProducts.addAll(finalRows);
+            filteredProducts = new ArrayList<>(allProducts);
+            updateTable();
+        });
     }
 
     private void loadSampleData() {
@@ -367,7 +405,11 @@ public class ProductListPanel implements Initializable {
         if (currentPage > pages) currentPage = pages;
         int from = (currentPage - 1) * PAGE_SIZE;
         int to   = Math.min(from + PAGE_SIZE, total);
-        tableProducts.setItems(FXCollections.observableArrayList(filteredProducts.subList(from, to)));
+        if (from < total) {
+            tableProducts.setItems(FXCollections.observableArrayList(filteredProducts.subList(from, to)));
+        } else {
+            tableProducts.setItems(FXCollections.observableArrayList());
+        }
         rebuildPageButtons(pages);
     }
 
@@ -412,9 +454,9 @@ public class ProductListPanel implements Initializable {
         try {
             if (countdownTimer != null) countdownTimer.stop();
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-            javafx.scene.Parent root = loader.load();
-            javafx.stage.Stage stage = (javafx.stage.Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new javafx.scene.Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
+            Parent root = loader.load();
+            Stage stage = (Stage) tableProducts.getScene().getWindow();
+            stage.setScene(new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -423,15 +465,15 @@ public class ProductListPanel implements Initializable {
             if (countdownTimer != null) countdownTimer.stop();
             FXMLLoader loader = new FXMLLoader(
                     getClass().getResource("/fxml/bidding/ProductDetailPanel.fxml"));
-            javafx.scene.Parent root = loader.load();
+            Parent root = loader.load();
             ProductDetailPanel controller = loader.getController();
             controller.loadProduct(
                     product.getStt(), product.getName(), product.getPrice(),
                     product.getSeller(), product.getRemainingSeconds(),
                     getImagePath(product.getName()));
             if (product.getItemId() != null) controller.setItemId(product.getItemId());
-            javafx.stage.Stage stage = (javafx.stage.Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new javafx.scene.Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
+            Stage stage = (Stage) tableProducts.getScene().getWindow();
+            stage.setScene(new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 

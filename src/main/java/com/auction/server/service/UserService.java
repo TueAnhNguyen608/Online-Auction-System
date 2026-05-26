@@ -2,7 +2,6 @@ package com.auction.server.service;
 
 import com.auction.common.model.exception.AuthenticationException;
 import com.auction.common.model.user.User;
-import com.auction.common.util.PasswordUtil;
 import com.auction.server.repository.UserRepository;
 import java.sql.SQLException;
 import java.util.List;
@@ -43,7 +42,8 @@ public class UserService {
             throw new AuthenticationException("Sai tên đăng nhập hoặc mật khẩu", username);
         }
 
-        if (!PasswordUtil.verify(password, user.getPassword())) {
+        // 🔥 SO SÁNH PLAIN TEXT TRỰC TIẾP (KHÔNG HASH)
+        if (!password.equals(user.getPassword())) {
             System.out.println("❌ Wrong password for: " + username);
             throw new AuthenticationException("Sai tên đăng nhập hoặc mật khẩu", username);
         }
@@ -56,7 +56,8 @@ public class UserService {
         if (userRepo.existsByUsername(user.getUsername())) {
             return false;
         }
-        user.setPassword(PasswordUtil.hash(user.getPassword()));
+        // 🔥 LƯU PLAIN TEXT (KHÔNG HASH)
+        // user.setPassword(PasswordUtil.hash(user.getPassword()));
         return userRepo.save(user);
     }
 
@@ -80,12 +81,13 @@ public class UserService {
         User user = userRepo.findById(userId);
         if (user == null) return false;
 
-        if (!PasswordUtil.verify(oldPassword, user.getPassword())) {
+        // 🔥 SO SÁNH PLAIN TEXT
+        if (!oldPassword.equals(user.getPassword())) {
             return false;
         }
 
-        String hashedNewPassword = PasswordUtil.hash(newPassword);
-        return userRepo.updatePassword(userId, hashedNewPassword);
+        // 🔥 LƯU PLAIN TEXT (KHÔNG HASH)
+        return userRepo.updatePassword(userId, newPassword);
     }
 
     public boolean deleteUser(String userId) throws SQLException {
