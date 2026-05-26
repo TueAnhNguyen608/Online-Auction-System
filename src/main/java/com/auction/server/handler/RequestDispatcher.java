@@ -7,6 +7,7 @@ import com.auction.common.model.communication.ResponseCode;
 import com.auction.common.model.user.User;
 import com.auction.server.exception.AuctionExceptionHandler;
 import com.auction.server.handler.impl.*;
+import com.auction.server.service.RateLimiterService;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class RequestDispatcher {
 
     private static volatile RequestDispatcher instance;
     private final Map<CommandType, RequestHandler> handlers = new EnumMap<>(CommandType.class);
+    private final RateLimiterService rateLimiter = RateLimiterService.getInstance();
 
     private RequestDispatcher() {
         registerHandlers();
@@ -51,6 +53,7 @@ public class RequestDispatcher {
         handlers.put(CommandType.GET_SYSTEM_STATS, new GetSystemStatsHandler());
         handlers.put(CommandType.SUBSCRIBE_ITEM, new SubscribeHandler());
         handlers.put(CommandType.UNSUBSCRIBE_ITEM, new UnsubscribeHandler());
+        // 🔥 THÊM: KeepAlive handler
         handlers.put(CommandType.KEEP_ALIVE, new KeepAliveHandler());
     }
 
@@ -60,13 +63,22 @@ public class RequestDispatcher {
             return ResponseMessage.error("Unknown command: " + request.getCommand());
         }
 
-        // 🔥 THÊM ĐOẠN NÀY: set clientHandler cho các handler hỗ trợ subscribe
         if (handler instanceof SubscribableHandler && clientHandler != null) {
             ((SubscribableHandler) handler).setClientHandler(clientHandler);
         }
 
         try {
             String userId = clientHandler != null ? clientHandler.getCurrentUserId() : null;
+
+            // 🔥 THÊM: Bypass rate limit cho KEEP_ALIVE và LOGIN
+            CommandType cmd = request.getCommand();
+            if (cmd != CommandType.KEEP_ALIVE && cmd != CommandType.LOGIN &&
+                    cmd != CommandType.REGISTER && userId != null) {
+                if (!rateLimiter.isAllowed(userId)) {
+                    return ResponseMessage.error("Quá nhiều yêu cầu. Vui lòng thử lại sau.");
+                }
+            }
+
             ResponseMessage response = handler.handle(request, userId);
 
             if (request.getCommand() == CommandType.LOGIN &&
@@ -82,6 +94,12 @@ public class RequestDispatcher {
                     System.out.println("✅ Set user info: " + user.getUsername());
                 }
             }
+
+            // 🔥 THÊM: Update heartbeat cho KEEP_ALIVE
+            if (cmd == CommandType.KEEP_ALIVE && clientHandler != null) {
+                clientHandler.updateHeartbeat();
+            }
+
             return response;
         } catch (Exception e) {
             e.printStackTrace();

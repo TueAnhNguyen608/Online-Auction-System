@@ -10,10 +10,12 @@ import com.auction.common.model.exception.InvalidBidException;
 import com.auction.common.model.item.Item;
 import com.auction.common.model.item.ItemStatus;
 import com.auction.server.broadcast.EventBroadcaster;
+import com.auction.server.pool.DatabaseConnectionPool;
 import com.auction.server.repository.AutoBidRepository;
 import com.auction.server.repository.BidRepository;
 import com.auction.server.repository.ItemRepository;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -29,6 +31,7 @@ public class BiddingService {
     private final BidRepository bidRepo;
     private final AutoBidRepository autoBidRepo;
     private final EventBroadcaster broadcaster;
+    private final DatabaseConnectionPool dbPool;
     private final ConcurrentHashMap<String, ReentrantLock> itemLocks = new ConcurrentHashMap<>();
 
     private BiddingService() {
@@ -36,6 +39,7 @@ public class BiddingService {
         this.bidRepo = BidRepository.getInstance();
         this.autoBidRepo = AutoBidRepository.getInstance();
         this.broadcaster = EventBroadcaster.getInstance();
+        this.dbPool = DatabaseConnectionPool.getInstance();
     }
 
     public static BiddingService getInstance() {
@@ -49,11 +53,13 @@ public class BiddingService {
         return instance;
     }
 
+    // 🔥 SỬA: Thêm transaction
     public BidResult placeBid(Bid bid) throws Exception {
+        // Validation cơ bản
         if (bid.getAmount() > MAX_BID_AMOUNT) {
-            throw new InvalidBidException("Giá đặt không được vượt quá " + String.format("%,.0f", MAX_BID_AMOUNT) + " VND");
+            throw new InvalidBidException("Giá đặt không được vượt quá " +
+                    String.format("%,.0f", MAX_BID_AMOUNT) + " VND");
         }
-
         if (bid.getAmount() <= 0) {
             throw new InvalidBidException("Giá đặt phải lớn hơn 0");
         }
@@ -61,8 +67,15 @@ public class BiddingService {
         ReentrantLock lock = itemLocks.computeIfAbsent(bid.getItemId(), k -> new ReentrantLock());
         lock.lock();
 
+        Connection conn = null;
+
         try {
-            Item item = itemRepo.findById(bid.getItemId())
+            // 🔥 Lấy connection và bắt đầu transaction
+            conn = dbPool.getConnection();
+            conn.setAutoCommit(false);
+
+            // 🔥 Lấy item với FOR UPDATE (lock row)
+            Item item = itemRepo.findByIdForUpdate(bid.getItemId(), conn)
                     .orElseThrow(() -> new InvalidBidException("Sản phẩm không tồn tại"));
 
             if (item.getStatus() == ItemStatus.ENDED) {
@@ -70,7 +83,7 @@ public class BiddingService {
             }
 
             if (item.getEndTime().isBefore(LocalDateTime.now())) {
-                itemRepo.updateStatus(bid.getItemId(), ItemStatus.ENDED);
+                itemRepo.updateStatus(bid.getItemId(), ItemStatus.ENDED, conn);
                 throw new AuctionClosedException("Thời gian đấu giá đã kết thúc", bid.getItemId());
             }
 
@@ -94,23 +107,27 @@ public class BiddingService {
             boolean extended = false;
 
             if (secondsLeft <= AuctionConstants.SNIPING_WINDOW_SECONDS && secondsLeft > 0) {
-                itemRepo.extendEndTime(bid.getItemId(), AuctionConstants.EXTENSION_SECONDS);
+                itemRepo.extendEndTime(bid.getItemId(), AuctionConstants.EXTENSION_SECONDS, conn);
                 extended = true;
-                System.out.println("⏰ Anti-Sniping: Kéo dài phiên đấu giá thêm " + AuctionConstants.EXTENSION_SECONDS + " giây");
-
-                PriceUpdateEvent extensionEvent = PriceUpdateEvent.extension(bid.getItemId(), AuctionConstants.EXTENSION_SECONDS);
-                broadcaster.broadcastToItem(bid.getItemId(), extensionEvent);
+                System.out.println("⏰ Anti-Sniping: Kéo dài phiên đấu giá thêm " +
+                        AuctionConstants.EXTENSION_SECONDS + " giây");
             }
 
             bid.setItemName(item.getName());
             bid.setBidTime(LocalDateTime.now());
-            bidRepo.save(bid);
 
+            // 🔥 Lưu bid trong transaction
+            bidRepo.save(bid, conn);
+
+            // 🔥 Cập nhật item trong transaction
             itemRepo.updateCurrentPrice(bid.getItemId(), bid.getAmount(),
-                    bid.getBidderId(), bid.getBidderName());
+                    bid.getBidderId(), bid.getBidderName(), conn);
 
+            // 🔥 COMMIT transaction
+            conn.commit();
+
+            // 🔥 Broadcast SAU KHI COMMIT (không cần trong transaction)
             item = itemRepo.findById(bid.getItemId()).orElse(item);
-
             long newRemaining = Math.max(0, item.getSecondsRemaining());
             PriceUpdateEvent event = new PriceUpdateEvent(
                     item.getId(), item.getName(), bid.getAmount(),
@@ -118,93 +135,140 @@ public class BiddingService {
             );
             broadcaster.broadcastToItem(bid.getItemId(), event);
 
-            System.out.println("✅ Đặt giá thành công: " + bid.getBidderName() + " - " + String.format("%,.0f", bid.getAmount()) + " VND");
+            System.out.println("✅ Đặt giá thành công: " + bid.getBidderName() +
+                    " - " + String.format("%,.0f", bid.getAmount()) + " VND");
 
+            // 🔥 Kích hoạt auto-bid (có transaction riêng)
             triggerAutoBids(bid.getItemId());
 
             return new BidResult(bid, extended);
 
+        } catch (Exception e) {
+            // 🔥 ROLLBACK nếu có lỗi
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException re) {
+                    System.err.println("Rollback failed: " + re.getMessage());
+                }
+            }
+            throw e;
         } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    dbPool.returnConnection(conn);
+                } catch (SQLException e) {
+                    System.err.println("Error returning connection: " + e.getMessage());
+                }
+            }
             lock.unlock();
         }
     }
 
+    // 🔥 SỬA: triggerAutoBids cũng dùng transaction
     private void triggerAutoBids(String itemId) throws Exception {
         int maxIterations = 50;
         int iteration = 0;
 
         while (iteration++ < maxIterations) {
-            Item item = itemRepo.findById(itemId).orElse(null);
-            if (item == null || item.getStatus() == ItemStatus.ENDED) break;
+            Connection conn = null;
+            try {
+                conn = dbPool.getConnection();
+                conn.setAutoCommit(false);
 
-            List<Map<String, Object>> autoBids = autoBidRepo.findByItemId(itemId);
-            if (autoBids.isEmpty()) break;
+                Item item = itemRepo.findByIdForUpdate(itemId, conn).orElse(null);
+                if (item == null || item.getStatus() == ItemStatus.ENDED) break;
 
-            String currentWinnerId = item.getCurrentBidderId();
-            double currentPrice = item.getCurrentPrice();
+                List<Map<String, Object>> autoBids = autoBidRepo.findByItemId(itemId, conn);
+                if (autoBids.isEmpty()) break;
 
-            double stepPrice = currentPrice * AuctionConstants.DEFAULT_STEP_PERCENT;
-            if (stepPrice < AuctionConstants.MINIMUM_BID_AMOUNT) {
-                stepPrice = AuctionConstants.MINIMUM_BID_AMOUNT;
-            }
+                String currentWinnerId = item.getCurrentBidderId();
+                double currentPrice = item.getCurrentPrice();
 
-            Map<String, Object> bestAutoBid = null;
-            double bestMaxAmount = 0;
+                double stepPrice = currentPrice * AuctionConstants.DEFAULT_STEP_PERCENT;
+                if (stepPrice < AuctionConstants.MINIMUM_BID_AMOUNT) {
+                    stepPrice = AuctionConstants.MINIMUM_BID_AMOUNT;
+                }
 
-            for (Map<String, Object> setting : autoBids) {
-                String userId = (String) setting.get("user_id");
-                if (userId.equals(currentWinnerId)) continue;
+                Map<String, Object> bestAutoBid = null;
+                double bestMaxAmount = 0;
 
-                double maxAmount = (double) setting.get("max_amount");
-                if (maxAmount > currentPrice && maxAmount > bestMaxAmount) {
-                    bestMaxAmount = maxAmount;
-                    bestAutoBid = setting;
+                for (Map<String, Object> setting : autoBids) {
+                    String userId = (String) setting.get("user_id");
+                    if (userId.equals(currentWinnerId)) continue;
+
+                    double maxAmount = (double) setting.get("max_amount");
+                    if (maxAmount > currentPrice && maxAmount > bestMaxAmount) {
+                        bestMaxAmount = maxAmount;
+                        bestAutoBid = setting;
+                    }
+                }
+
+                if (bestAutoBid == null) {
+                    conn.commit();
+                    break;
+                }
+
+                String nextBidderId = (String) bestAutoBid.get("user_id");
+                String nextBidderName = (String) bestAutoBid.get("username");
+                double maxAmount = (double) bestAutoBid.get("max_amount");
+
+                double nextPrice = currentPrice + stepPrice;
+                double bidAmount = Math.min(nextPrice, maxAmount);
+
+                if (bidAmount <= currentPrice) {
+                    conn.commit();
+                    break;
+                }
+
+                System.out.println("🤖 Auto-bid kích hoạt: " + nextBidderName +
+                        " đặt " + String.format("%,.0f", bidAmount) + " VND");
+
+                Bid autoBid = new Bid();
+                autoBid.setItemId(itemId);
+                autoBid.setAmount(bidAmount);
+                autoBid.setBidderId(nextBidderId);
+                autoBid.setBidderName(nextBidderName);
+                autoBid.setAutoBid(true);
+                autoBid.setBidTime(LocalDateTime.now());
+                autoBid.setItemName(item.getName());
+
+                bidRepo.save(autoBid, conn);
+                itemRepo.updateCurrentPrice(itemId, bidAmount, nextBidderId, nextBidderName, conn);
+
+                conn.commit();
+
+                // Broadcast sau commit
+                item = itemRepo.findById(itemId).orElse(item);
+                PriceUpdateEvent event = new PriceUpdateEvent(
+                        item.getId(), item.getName(), bidAmount,
+                        nextBidderName, item.getSecondsRemaining(), item.getBidCount()
+                );
+                broadcaster.broadcastToItem(itemId, event);
+
+            } catch (Exception e) {
+                if (conn != null) {
+                    try { conn.rollback(); } catch (SQLException re) {}
+                }
+                System.err.println("Auto-bid error: " + e.getMessage());
+                break;
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.setAutoCommit(true);
+                        dbPool.returnConnection(conn);
+                    } catch (SQLException e) {}
                 }
             }
-
-            if (bestAutoBid == null) break;
-
-            String nextBidderId = (String) bestAutoBid.get("user_id");
-            String nextBidderName = (String) bestAutoBid.get("username");
-            double maxAmount = (double) bestAutoBid.get("max_amount");
-
-            double nextPrice = currentPrice + stepPrice;
-            double bidAmount = Math.min(nextPrice, maxAmount);
-
-            if (bidAmount <= currentPrice) break;
-
-            if (bidAmount > MAX_BID_AMOUNT) {
-                System.err.println("⚠️ Auto-bid amount exceeds max limit: " + bidAmount);
-                break;
-            }
-
-            System.out.println("🤖 Auto-bid kích hoạt: " + nextBidderName + " đặt " + String.format("%,.0f", bidAmount) + " VND");
-
-            Bid autoBid = new Bid();
-            autoBid.setItemId(itemId);
-            autoBid.setAmount(bidAmount);
-            autoBid.setBidderId(nextBidderId);
-            autoBid.setBidderName(nextBidderName);
-            autoBid.setAutoBid(true);
-            autoBid.setBidTime(LocalDateTime.now());
-            autoBid.setItemName(item.getName());
-
-            bidRepo.save(autoBid);
-            itemRepo.updateCurrentPrice(itemId, bidAmount, nextBidderId, nextBidderName);
-
-            item = itemRepo.findById(itemId).orElse(item);
-
-            PriceUpdateEvent event = new PriceUpdateEvent(
-                    item.getId(), item.getName(), bidAmount,
-                    nextBidderName, item.getSecondsRemaining(), item.getBidCount()
-            );
-            broadcaster.broadcastToItem(itemId, event);
         }
 
         if (iteration >= maxIterations) {
             System.err.println("⚠️ Auto-bid vượt quá số lần lặp cho item: " + itemId);
         }
     }
+
+    // Các phương thức khác giữ nguyên nhưng thêm parameter Connection khi cần
 
     public List<Bid> getBidHistory(String itemId) throws SQLException {
         return bidRepo.findByItemId(itemId);
@@ -243,7 +307,6 @@ public class BiddingService {
         }
 
         points.sort((a, b) -> a.getTime().compareTo(b.getTime()));
-
         return points;
     }
 
@@ -252,24 +315,16 @@ public class BiddingService {
     }
 
     public boolean setAutoBid(String userId, String itemId, double maxAmount) throws SQLException {
-        if (maxAmount > MAX_BID_AMOUNT) {
-            return false;
-        }
+        if (maxAmount > MAX_BID_AMOUNT) return false;
         Optional<Item> item = itemRepo.findById(itemId);
-        if (item.isEmpty()) {
-            return false;
-        }
-        if (maxAmount <= item.get().getCurrentPrice()) {
-            return false;
-        }
+        if (item.isEmpty()) return false;
+        if (maxAmount <= item.get().getCurrentPrice()) return false;
         return autoBidRepo.setAutoBid(userId, itemId, maxAmount);
     }
 
     public boolean isWinner(String userId, String itemId) throws SQLException {
         Optional<Item> item = itemRepo.findById(itemId);
-        if (item.isEmpty()) {
-            return false;
-        }
+        if (item.isEmpty()) return false;
         return item.get().getStatus() == ItemStatus.ENDED &&
                 userId.equals(item.get().getCurrentBidderId());
     }

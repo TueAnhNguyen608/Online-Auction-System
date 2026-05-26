@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DatabaseConnectionPool {
 
@@ -18,8 +19,11 @@ public class DatabaseConnectionPool {
     private final int poolSize;
     private boolean isInitialized = false;
 
+    // 🔥 THÊM: Connection leak tracking
+    private final AtomicInteger activeConnections = new AtomicInteger(0);
+    private final AtomicInteger totalConnections = new AtomicInteger(0);
+
     private DatabaseConnectionPool() {
-        // 🔥 CHỈ DÙNG MYSQL - BỎ H2 HOÀN TOÀN
         this.url = AuctionConstants.DB_URL;
         this.username = AuctionConstants.DB_USER;
         this.password = AuctionConstants.DB_PASSWORD;
@@ -28,7 +32,6 @@ public class DatabaseConnectionPool {
 
         this.connectionPool = new LinkedBlockingQueue<>(poolSize);
 
-        // Load MySQL driver
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             System.out.println("✅ MySQL Driver loaded");
@@ -37,6 +40,9 @@ public class DatabaseConnectionPool {
         }
 
         initializePool();
+
+        // 🔥 THÊM: Leak detector thread
+        startLeakDetector();
     }
 
     public static DatabaseConnectionPool getInstance() {
@@ -58,6 +64,7 @@ public class DatabaseConnectionPool {
                 if (conn != null) {
                     connectionPool.offer(conn);
                     successCount++;
+                    totalConnections.incrementAndGet();
                 }
             } catch (SQLException e) {
                 System.err.println("Failed to create connection " + (i + 1) + ": " + e.getMessage());
@@ -72,6 +79,25 @@ public class DatabaseConnectionPool {
         }
     }
 
+    // 🔥 THÊM: Leak detector
+    private void startLeakDetector() {
+        Thread leakDetector = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(60000); // Kiểm tra mỗi phút
+                    int active = activeConnections.get();
+                    if (active > 0) {
+                        System.out.println("⚠️ " + active + " active database connections (may be leaked)");
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        leakDetector.setDaemon(true);
+        leakDetector.start();
+    }
+
     public Connection getConnection() throws SQLException {
         if (!isInitialized) {
             throw new SQLException("Connection pool not initialized");
@@ -81,7 +107,10 @@ public class DatabaseConnectionPool {
             Connection conn = connectionPool.poll(5, TimeUnit.SECONDS);
             if (conn == null || conn.isClosed()) {
                 conn = DriverManager.getConnection(url, username, password);
+                totalConnections.incrementAndGet();
+                System.out.println("⚠️ Created new connection (pool exhausted)");
             }
+            activeConnections.incrementAndGet();
             return conn;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -91,6 +120,7 @@ public class DatabaseConnectionPool {
 
     public void returnConnection(Connection conn) {
         if (conn != null) {
+            activeConnections.decrementAndGet();
             try {
                 if (!conn.isClosed()) {
                     conn.setAutoCommit(true);
@@ -99,12 +129,14 @@ public class DatabaseConnectionPool {
                         connectionPool.offer(conn);
                     } else {
                         conn.close();
+                        totalConnections.decrementAndGet();
                     }
                 }
             } catch (SQLException e) {
                 System.err.println("Error returning connection: " + e.getMessage());
                 try {
                     conn.close();
+                    totalConnections.decrementAndGet();
                 } catch (SQLException ex) {
                     // Ignore
                 }
@@ -140,5 +172,9 @@ public class DatabaseConnectionPool {
             System.err.println("❌ Database connection test failed: " + e.getMessage());
             return false;
         }
+    }
+
+    public int getActiveConnections() {
+        return activeConnections.get();
     }
 }

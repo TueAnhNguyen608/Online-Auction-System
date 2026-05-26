@@ -24,10 +24,22 @@ public class AutoBidRepository {
         return instance;
     }
 
+    // 🔥 THÊM: Phương thức với connection
+    public boolean setAutoBid(String userId, String itemId, double maxAmount, Connection conn) throws SQLException {
+        String sql = "INSERT INTO auto_bid_settings (user_id, item_id, max_amount) VALUES (?,?,?) " +
+                "ON DUPLICATE KEY UPDATE max_amount = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, userId);
+            stmt.setString(2, itemId);
+            stmt.setDouble(3, maxAmount);
+            stmt.setDouble(4, maxAmount);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
     public boolean setAutoBid(String userId, String itemId, double maxAmount) throws SQLException {
         String sql = "INSERT INTO auto_bid_settings (user_id, item_id, max_amount) VALUES (?,?,?) " +
                 "ON DUPLICATE KEY UPDATE max_amount = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, userId);
@@ -40,7 +52,6 @@ public class AutoBidRepository {
 
     public boolean cancelAutoBid(String userId, String itemId) throws SQLException {
         String sql = "DELETE FROM auto_bid_settings WHERE user_id = ? AND item_id = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, userId);
@@ -49,22 +60,20 @@ public class AutoBidRepository {
         }
     }
 
-    public List<Map<String, Object>> findByUserId(String userId) throws SQLException {
+    // 🔥 THÊM: findByItemId với connection
+    public List<Map<String, Object>> findByItemId(String itemId, Connection conn) throws SQLException {
         List<Map<String, Object>> result = new ArrayList<>();
-        String sql = "SELECT a.item_id, a.max_amount, i.name, i.current_price " +
-                "FROM auto_bid_settings a JOIN items i ON a.item_id = i.id " +
-                "WHERE a.user_id = ?";
-
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, userId);
+        String sql = "SELECT a.user_id, u.username, a.max_amount " +
+                "FROM auto_bid_settings a JOIN users u ON a.user_id = u.id " +
+                "WHERE a.item_id = ? ORDER BY a.max_amount DESC";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, itemId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
-                row.put("itemId", rs.getString("item_id"));
-                row.put("itemName", rs.getString("name"));
-                row.put("maxAmount", rs.getDouble("max_amount"));
-                row.put("currentPrice", rs.getDouble("current_price"));
+                row.put("user_id", rs.getString("user_id"));
+                row.put("username", rs.getString("username"));
+                row.put("max_amount", rs.getDouble("max_amount"));
                 result.add(row);
             }
         }
@@ -76,7 +85,6 @@ public class AutoBidRepository {
         String sql = "SELECT a.user_id, u.username, a.max_amount " +
                 "FROM auto_bid_settings a JOIN users u ON a.user_id = u.id " +
                 "WHERE a.item_id = ? ORDER BY a.max_amount DESC";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, itemId);
@@ -86,6 +94,27 @@ public class AutoBidRepository {
                 row.put("user_id", rs.getString("user_id"));
                 row.put("username", rs.getString("username"));
                 row.put("max_amount", rs.getDouble("max_amount"));
+                result.add(row);
+            }
+        }
+        return result;
+    }
+
+    public List<Map<String, Object>> findByUserId(String userId) throws SQLException {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String sql = "SELECT a.item_id, a.max_amount, i.name, i.current_price " +
+                "FROM auto_bid_settings a JOIN items i ON a.item_id = i.id " +
+                "WHERE a.user_id = ?";
+        try (Connection conn = pool.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("itemId", rs.getString("item_id"));
+                row.put("itemName", rs.getString("name"));
+                row.put("maxAmount", rs.getDouble("max_amount"));
+                row.put("currentPrice", rs.getDouble("current_price"));
                 result.add(row);
             }
         }

@@ -14,12 +14,25 @@ public final class AuctionConstants {
     public static final double DEFAULT_STEP_PERCENT = 0.05;
     public static final double MINIMUM_BID_AMOUNT = 1000;
 
+    // 🔥 THÊM: Rate limiting
+    public static final int MAX_REQUESTS_PER_MINUTE = 60;
+    public static final int RATE_LIMIT_WINDOW_SECONDS = 60;
+
+    // 🔥 THÊM: Session timeout
+    public static final int SESSION_TIMEOUT_MINUTES = 30;
+    public static final int HEARTBEAT_INTERVAL_SECONDS = 30;
+    public static final int HEARTBEAT_TIMEOUT_SECONDS = 60;
+
     // ========== VALIDATION RULES ==========
     public static final int MIN_PASSWORD_LENGTH = 6;
     public static final int MAX_ITEM_NAME_LENGTH = 200;
     public static final int MAX_DESCRIPTION_LENGTH = 1000;
     public static final int MIN_AUCTION_DURATION_MINUTES = 5;
     public static final int MAX_AUCTION_DURATION_DAYS = 30;
+
+    // 🔥 THÊM: Validation cho bid
+    public static final double MAX_BID_AMOUNT = 1_000_000_000_000L;  // 1 nghìn tỷ
+    public static final double MIN_BID_AMOUNT = 1000;
 
     // ========== ITEM STATUS ==========
     public static final String ITEM_STATUS_PENDING = "PENDING";
@@ -55,6 +68,8 @@ public final class AuctionConstants {
     public static final String MSG_AUCTION_ENDED = "Phiên đấu giá đã kết thúc";
     public static final String MSG_ITEM_NOT_FOUND = "Không tìm thấy sản phẩm";
     public static final String MSG_PERMISSION_DENIED = "Bạn không có quyền thực hiện hành động này";
+    public static final String MSG_RATE_LIMIT = "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.";
+    public static final String MSG_SESSION_EXPIRED = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
 
     private AuctionConstants() {
         throw new UnsupportedOperationException("Cannot instantiate constants class");

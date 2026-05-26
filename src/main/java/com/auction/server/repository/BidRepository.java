@@ -26,10 +26,27 @@ public class BidRepository {
         return instance;
     }
 
+    // 🔥 THÊM: save với connection (dùng trong transaction)
+    public boolean save(Bid bid, Connection conn) throws SQLException {
+        String sql = "INSERT INTO bids(id, item_id, item_name, bidder_id, bidder_name, amount, bid_time, is_auto_bid) " +
+                "VALUES(?,?,?,?,?,?,?,?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, UUID.randomUUID().toString());
+            stmt.setString(2, bid.getItemId());
+            stmt.setString(3, bid.getItemName());
+            stmt.setString(4, bid.getBidderId());
+            stmt.setString(5, bid.getBidderName());
+            stmt.setDouble(6, bid.getAmount());
+            stmt.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setBoolean(8, bid.isAutoBid());
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    // Phương thức cũ giữ nguyên
     public boolean save(Bid bid) throws SQLException {
         String sql = "INSERT INTO bids(id, item_id, item_name, bidder_id, bidder_name, amount, bid_time, is_auto_bid) " +
                 "VALUES(?,?,?,?,?,?,?,?)";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, UUID.randomUUID().toString());
@@ -47,7 +64,6 @@ public class BidRepository {
     public List<Bid> findByItemId(String itemId) throws SQLException {
         List<Bid> bids = new ArrayList<>();
         String sql = "SELECT * FROM bids WHERE item_id = ? ORDER BY amount DESC";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, itemId);
@@ -65,7 +81,6 @@ public class BidRepository {
                 "i.current_price AS final_price, i.status AS item_status " +
                 "FROM bids b JOIN items i ON b.item_id = i.id " +
                 "WHERE b.bidder_id = ? ORDER BY b.bid_time DESC";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, userId);
@@ -90,7 +105,6 @@ public class BidRepository {
 
     public Optional<Bid> findHighestBidByItemId(String itemId) throws SQLException {
         String sql = "SELECT * FROM bids WHERE item_id = ? ORDER BY amount DESC LIMIT 1";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, itemId);
@@ -104,7 +118,6 @@ public class BidRepository {
 
     public int countByItemId(String itemId) throws SQLException {
         String sql = "SELECT COUNT(*) FROM bids WHERE item_id = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, itemId);
@@ -118,7 +131,6 @@ public class BidRepository {
 
     public int countByBidderId(String userId) throws SQLException {
         String sql = "SELECT COUNT(*) FROM bids WHERE bidder_id = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, userId);
@@ -132,7 +144,6 @@ public class BidRepository {
 
     public int countAll() throws SQLException {
         String sql = "SELECT COUNT(*) FROM bids";
-
         try (Connection conn = pool.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -140,26 +151,6 @@ public class BidRepository {
                 return rs.getInt(1);
             }
             return 0;
-        }
-    }
-
-    public boolean deleteByItemId(String itemId) throws SQLException {
-        String sql = "DELETE FROM bids WHERE item_id = ?";
-
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, itemId);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    public boolean deleteByBidderId(String userId) throws SQLException {
-        String sql = "DELETE FROM bids WHERE bidder_id = ?";
-
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, userId);
-            return stmt.executeUpdate() > 0;
         }
     }
 

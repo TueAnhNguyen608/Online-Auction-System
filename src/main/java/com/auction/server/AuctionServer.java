@@ -6,6 +6,7 @@ import com.auction.server.network.ServerSocketManager;
 import com.auction.server.pool.DatabaseConnectionPool;
 import com.auction.server.scheduler.AuctionScheduler;
 import com.auction.server.scheduler.TimeBroadcastScheduler;
+import com.auction.server.service.SessionCleanupService;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -19,6 +20,9 @@ public class AuctionServer {
     private static Thread serverThread;
     private static final AtomicBoolean serverStarted = new AtomicBoolean(false);
 
+    // 🔥 THÊM: Session cleanup service
+    private static SessionCleanupService sessionCleanupService;
+
     public static void start() {
         if (isRunning) {
             System.out.println("⚠️ Server already running");
@@ -30,7 +34,7 @@ public class AuctionServer {
                 System.out.println("🚀 Starting Auction Server...");
                 System.out.println("========================================");
 
-                System.out.println("\n[1/5] Initializing Database...");
+                System.out.println("\n[1/6] Initializing Database...");
                 dbPool = DatabaseConnectionPool.getInstance();
                 if (!dbPool.testConnection()) {
                     System.err.println("❌ Database connection failed! Server cannot start.");
@@ -38,25 +42,32 @@ public class AuctionServer {
                 }
                 System.out.println("✅ Database connected successfully");
 
-                System.out.println("\n[2/5] Initializing sample data...");
+                System.out.println("\n[2/6] Initializing sample data...");
                 DataInitializer.initData();
 
-                System.out.println("\n[3/5] Starting schedulers...");
+                System.out.println("\n[3/6] Starting schedulers...");
                 auctionScheduler = new AuctionScheduler();
                 timeScheduler = new TimeBroadcastScheduler();
                 System.out.println("✅ Schedulers started");
 
-                System.out.println("\n[4/5] Starting server socket...");
+                System.out.println("\n[4/6] Starting session cleanup service...");
+                sessionCleanupService = new SessionCleanupService();
+                sessionCleanupService.start();
+                System.out.println("✅ Session cleanup service started");
+
+                System.out.println("\n[5/6] Starting server socket...");
                 int port = ServerConfig.getInstance().getPort();
                 serverSocketManager = new ServerSocketManager(port);
 
-                System.out.println("\n[5/5] Registering shutdown hook...");
+                System.out.println("\n[6/6] Registering shutdown hook...");
 
                 isRunning = true;
                 serverStarted.set(true);
                 System.out.println("\n========================================");
                 System.out.println("✅ Auction Server started successfully!");
                 System.out.println("   Port: " + port);
+                System.out.println("   Heartbeat: " + AuctionConstants.HEARTBEAT_INTERVAL_SECONDS + "s");
+                System.out.println("   Session timeout: " + AuctionConstants.SESSION_TIMEOUT_MINUTES + " minutes");
                 System.out.println("========================================\n");
 
                 serverSocketManager.startAccepting();
@@ -85,6 +96,9 @@ public class AuctionServer {
         isRunning = false;
         serverStarted.set(false);
 
+        if (sessionCleanupService != null) {
+            sessionCleanupService.stop();
+        }
         if (serverSocketManager != null) {
             serverSocketManager.stop();
         }

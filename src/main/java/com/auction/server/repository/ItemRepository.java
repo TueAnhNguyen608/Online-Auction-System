@@ -27,9 +27,34 @@ public class ItemRepository {
         return instance;
     }
 
+    // 🔥 THÊM: findById với FOR UPDATE (cho transaction)
+    public Optional<Item> findByIdForUpdate(String id, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM items WHERE id = ? FOR UPDATE";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(mapRow(rs));
+            }
+            return Optional.empty();
+        }
+    }
+
+    // 🔥 THÊM: Phương thức nhận connection
+    public Optional<Item> findById(String id, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM items WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(mapRow(rs));
+            }
+            return Optional.empty();
+        }
+    }
+
     public Optional<Item> findById(String id) throws SQLException {
         String sql = "SELECT * FROM items WHERE id = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id);
@@ -41,10 +66,45 @@ public class ItemRepository {
         }
     }
 
+    // 🔥 SỬA: updateCurrentPrice nhận connection
+    public boolean updateCurrentPrice(String itemId, double newPrice,
+                                      String bidderId, String bidderName,
+                                      Connection conn) throws SQLException {
+        String sql = "UPDATE items SET current_price = ?, current_bidder_id = ?, " +
+                "current_bidder_name = ?, bid_count = bid_count + 1 WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, newPrice);
+            stmt.setString(2, bidderId);
+            stmt.setString(3, bidderName);
+            stmt.setString(4, itemId);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    // 🔥 SỬA: updateStatus nhận connection
+    public boolean updateStatus(String itemId, ItemStatus status, Connection conn) throws SQLException {
+        String sql = "UPDATE items SET status = ? WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, status.name());
+            stmt.setString(2, itemId);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    // 🔥 SỬA: extendEndTime nhận connection
+    public boolean extendEndTime(String itemId, int seconds, Connection conn) throws SQLException {
+        String sql = "UPDATE items SET end_time = DATE_ADD(end_time, INTERVAL ? SECOND) WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, seconds);
+            stmt.setString(2, itemId);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    // Các phương thức cũ giữ nguyên
     public List<Item> findAll() throws SQLException {
         List<Item> items = new ArrayList<>();
         String sql = "SELECT * FROM items ORDER BY created_at DESC";
-
         try (Connection conn = pool.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -58,7 +118,6 @@ public class ItemRepository {
     public List<Item> findActiveItems() throws SQLException {
         List<Item> items = new ArrayList<>();
         String sql = "SELECT * FROM items WHERE status = 'ACTIVE' AND end_time > NOW() ORDER BY end_time ASC";
-
         try (Connection conn = pool.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -72,7 +131,6 @@ public class ItemRepository {
     public List<Item> findBySellerId(String sellerId) throws SQLException {
         List<Item> items = new ArrayList<>();
         String sql = "SELECT * FROM items WHERE seller_id = ? ORDER BY created_at DESC";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, sellerId);
@@ -82,59 +140,12 @@ public class ItemRepository {
             }
         }
         return items;
-    }
-
-    public List<Item> findByStatus(ItemStatus status) throws SQLException {
-        List<Item> items = new ArrayList<>();
-        String sql = "SELECT * FROM items WHERE status = ? ORDER BY end_time ASC";
-
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status.name());
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                items.add(mapRow(rs));
-            }
-        }
-        return items;
-    }
-
-    public int count() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM items";
-        try (Connection conn = pool.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) return rs.getInt(1);
-            return 0;
-        }
-    }
-
-    public int countActive() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM items WHERE status = 'ACTIVE' AND end_time > NOW()";
-        try (Connection conn = pool.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) return rs.getInt(1);
-            return 0;
-        }
-    }
-
-    public int countBySellerId(String sellerId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM items WHERE seller_id = ?";
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, sellerId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return rs.getInt(1);
-            return 0;
-        }
     }
 
     public boolean save(Item item) throws SQLException {
         String sql = "INSERT INTO items(id, name, description, starting_price, current_price, " +
                 "seller_id, seller_name, start_time, end_time, status, step_price) " +
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, item.getId());
@@ -155,7 +166,6 @@ public class ItemRepository {
     public boolean update(Item item) throws SQLException {
         String sql = "UPDATE items SET name = ?, description = ?, starting_price = ?, " +
                 "current_price = ?, end_time = ?, status = ? WHERE id = ?";
-
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, item.getName());
@@ -169,38 +179,6 @@ public class ItemRepository {
         }
     }
 
-    public boolean updateCurrentPrice(String itemId, double newPrice, String bidderId, String bidderName) throws SQLException {
-        String sql = "UPDATE items SET current_price = ?, current_bidder_id = ?, current_bidder_name = ?, bid_count = bid_count + 1 WHERE id = ?";
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setDouble(1, newPrice);
-            stmt.setString(2, bidderId);
-            stmt.setString(3, bidderName);
-            stmt.setString(4, itemId);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    public boolean updateStatus(String itemId, ItemStatus status) throws SQLException {
-        String sql = "UPDATE items SET status = ? WHERE id = ?";
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status.name());
-            stmt.setString(2, itemId);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    public boolean extendEndTime(String itemId, int seconds) throws SQLException {
-        String sql = "UPDATE items SET end_time = DATE_ADD(end_time, INTERVAL ? SECOND) WHERE id = ?";
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, seconds);
-            stmt.setString(2, itemId);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
     public boolean deleteById(String id) throws SQLException {
         String sql = "DELETE FROM items WHERE id = ?";
         try (Connection conn = pool.getConnection();
@@ -210,23 +188,32 @@ public class ItemRepository {
         }
     }
 
-    public void endExpiredAuctions() throws SQLException {
-        String sql = "UPDATE items SET status = 'ENDED' WHERE status = 'ACTIVE' AND end_time < NOW()";
-        try (Connection conn = pool.getConnection();
-             Statement stmt = conn.createStatement()) {
-            int updated = stmt.executeUpdate(sql);
-            if (updated > 0) {
-                System.out.println("✅ Đã kết thúc " + updated + " phiên đấu giá");
-            }
-        }
-    }
-
     public boolean forceEndAuction(String itemId) throws SQLException {
         String sql = "UPDATE items SET status = 'ENDED', end_time = NOW() WHERE id = ? AND status = 'ACTIVE'";
         try (Connection conn = pool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, itemId);
             return stmt.executeUpdate() > 0;
+        }
+    }
+
+    public int count() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM items";
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
+            return 0;
+        }
+    }
+
+    public int countActive() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM items WHERE status = 'ACTIVE' AND end_time > NOW()";
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
+            return 0;
         }
     }
 

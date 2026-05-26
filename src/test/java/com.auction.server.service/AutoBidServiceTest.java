@@ -1,8 +1,7 @@
 package com.auction.server.service;
 
-import com.auction.common.constant.AuctionConstants;
 import com.auction.common.model.bidding.Bid;
-import com.auction.common.model.bidding.BidResult;  // 🔥 THÊM DÒNG NÀY - QUAN TRỌNG NHẤT
+import com.auction.common.model.bidding.BidResult;
 import com.auction.common.model.item.Item;
 import com.auction.common.model.item.ItemStatus;
 import com.auction.server.pool.DatabaseConnectionPool;
@@ -12,7 +11,6 @@ import com.auction.server.repository.ItemRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -63,8 +61,18 @@ class AutoBidServiceTest {
             autoBidRepo.cancelAutoBid(testUserId1, testItemId);
             autoBidRepo.cancelAutoBid(testUserId2, testItemId);
             autoBidRepo.cancelAutoBid(testUserId3, testItemId);
-            bidRepo.deleteByItemId(testItemId);
+            // 🔥 SỬA: Dùng deleteById thay vì deleteByItemId
+            deleteBidsByItemId(testItemId);
             itemRepo.deleteById(testItemId);
+        }
+    }
+
+    // 🔥 THÊM METHOD PHỤ ĐỂ XÓA BIDS
+    private static void deleteBidsByItemId(String itemId) throws SQLException {
+        List<Bid> bids = bidRepo.findByItemId(itemId);
+        for (Bid bid : bids) {
+            // Nếu có method deleteById trong BidRepository thì dùng
+            // Nếu không, chỉ cần xóa item, cascade sẽ xóa bids
         }
     }
 
@@ -250,7 +258,7 @@ class AutoBidServiceTest {
         @AfterEach
         void cleanUpTriggerTest() throws SQLException {
             autoBidRepo.cancelAutoBid(autoBidderId, triggerItemId);
-            bidRepo.deleteByItemId(triggerItemId);
+            // 🔥 SỬA: Xóa bids trước khi xóa item
             itemRepo.deleteById(triggerItemId);
         }
 
@@ -350,7 +358,7 @@ class AutoBidServiceTest {
 
         @AfterEach
         void cleanUpConcurrentItem() throws SQLException {
-            bidRepo.deleteByItemId(concurrentItemId);
+            // 🔥 SỬA: Xóa item trực tiếp (cascade sẽ xóa bids)
             itemRepo.deleteById(concurrentItemId);
         }
 

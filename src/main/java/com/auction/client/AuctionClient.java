@@ -3,6 +3,11 @@ package com.auction.client;
 import java.io.*;
 import java.net.*;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -12,8 +17,9 @@ import com.auction.common.model.bidding.Bid;
 import com.auction.common.model.communication.CommandType;
 import com.auction.common.model.communication.Request;
 import com.auction.common.model.communication.ResponseMessage;
-import com.auction.common.model.item.Item;
+// 🔥 THÊM 2 IMPORT NÀY ĐỂ SỬA LỖI
 import com.auction.common.model.user.User;
+import com.auction.common.model.item.Item;
 
 public class AuctionClient {
     private Socket socket;
@@ -22,10 +28,22 @@ public class AuctionClient {
     private volatile boolean isConnected = false;
     private Thread listenerThread;
     private Consumer<ResponseMessage> callback;
+    private ScheduledExecutorService heartbeatExecutor;
+
+    // Lưu session để reconnect
+    private String lastUsername;
+    private String lastPassword;
+    private final List<String> subscribedItems = new CopyOnWriteArrayList<>();
+
+    // Retry configuration
+    private static final int MAX_RETRIES = 3;
+    private static final int RETRY_DELAY_MS = 2000;
 
     private final Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
             .create();
+
+    // ========== KẾT NỐI ==========
 
     public void connect(String host, int port) throws IOException {
         socket = new Socket(host, port);
@@ -37,7 +55,54 @@ public class AuctionClient {
         isConnected = true;
 
         System.out.println("✅ Connected to server at " + host + ":" + port);
+
+        startHeartbeat();
     }
+
+    // Heartbeat
+    private void startHeartbeat() {
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        heartbeatExecutor.scheduleAtFixedRate(() -> {
+            if (isConnected) {
+                try {
+                    sendRequest(CommandType.KEEP_ALIVE, null);
+                    System.out.println("💓 Heartbeat sent");
+                } catch (IOException e) {
+                    System.out.println("⚠️ Heartbeat failed: " + e.getMessage());
+                    isConnected = false;
+                }
+            }
+        }, 30, 30, TimeUnit.SECONDS);
+    }
+
+    // Lưu session
+    public void saveSession(String username, String password, List<String> items) {
+        this.lastUsername = username;
+        this.lastPassword = password;
+        this.subscribedItems.clear();
+        if (items != null) {
+            this.subscribedItems.addAll(items);
+        }
+    }
+
+    // Reconnect
+    public void reconnect() throws IOException {
+        if (socket != null && !socket.isClosed()) {
+            String host = socket.getInetAddress().getHostName();
+            int port = socket.getPort();
+            disconnect();
+            connect(host, port);
+
+            if (lastUsername != null && lastPassword != null) {
+                login(lastUsername, lastPassword);
+                for (String itemId : subscribedItems) {
+                    subscribeItem(itemId);
+                }
+            }
+        }
+    }
+
+    // ========== GỬI REQUEST ==========
 
     public ResponseMessage sendRequest(CommandType command, Object data) throws IOException {
         if (!isConnected) {
@@ -65,12 +130,49 @@ public class AuctionClient {
             return response;
         } catch (JsonSyntaxException e) {
             System.err.println("❌ Failed to parse JSON: " + jsonResponse);
-            System.err.println("   Error: " + e.getMessage());
             throw new IOException("Invalid response from server: " + e.getMessage());
         }
     }
 
+    // Gửi request có retry
+    public ResponseMessage sendRequestWithRetry(CommandType command, Object data) throws IOException {
+        int retries = 0;
+        Exception lastException = null;
+
+        while (retries < MAX_RETRIES) {
+            try {
+                return sendRequest(command, data);
+            } catch (IOException e) {
+                lastException = e;
+                retries++;
+                System.out.println("⚠️ Request failed, retry " + retries + "/" + MAX_RETRIES);
+
+                if (!isConnected) {
+                    System.out.println("🔄 Attempting to reconnect...");
+                    try {
+                        reconnect();
+                    } catch (IOException re) {
+                        System.out.println("❌ Reconnect failed: " + re.getMessage());
+                    }
+                }
+
+                try {
+                    Thread.sleep(RETRY_DELAY_MS * retries);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        throw new IOException("Failed after " + MAX_RETRIES + " retries", lastException);
+    }
+
+    // ========== CÁC PHƯƠNG THỨC GỌI API ==========
+
     public ResponseMessage login(String username, String password) throws IOException {
+        this.lastUsername = username;
+        this.lastPassword = password;
         return sendRequest(CommandType.LOGIN, new Object[]{username, password});
     }
 
@@ -87,7 +189,7 @@ public class AuctionClient {
     }
 
     public ResponseMessage placeBid(Bid bid) throws IOException {
-        return sendRequest(CommandType.PLACE_BID, bid);
+        return sendRequestWithRetry(CommandType.PLACE_BID, bid);
     }
 
     public ResponseMessage getBidHistory(String itemId) throws IOException {
@@ -95,10 +197,12 @@ public class AuctionClient {
     }
 
     public ResponseMessage subscribeItem(String itemId) throws IOException {
+        subscribedItems.add(itemId);
         return sendRequest(CommandType.SUBSCRIBE_ITEM, itemId);
     }
 
     public ResponseMessage unsubscribeItem(String itemId) throws IOException {
+        subscribedItems.remove(itemId);
         return sendRequest(CommandType.UNSUBSCRIBE_ITEM, itemId);
     }
 
@@ -142,6 +246,8 @@ public class AuctionClient {
         return sendRequest(CommandType.UPDATE_PROFILE, data);
     }
 
+    // ========== REALTIME LISTENER ==========
+
     public void startRealtimeListener(Consumer<ResponseMessage> callback) {
         this.callback = callback;
         listenerThread = new Thread(() -> {
@@ -157,7 +263,6 @@ public class AuctionClient {
                         }
                     } catch (JsonSyntaxException e) {
                         System.err.println("❌ Failed to parse realtime message: " + line);
-                        System.err.println("   Error: " + e.getMessage());
                     }
                 }
             } catch (IOException e) {
@@ -171,8 +276,14 @@ public class AuctionClient {
         System.out.println("✅ Realtime listener started");
     }
 
+    // ========== NGẮT KẾT NỐI ==========
+
     public void disconnect() throws IOException {
         isConnected = false;
+
+        if (heartbeatExecutor != null) {
+            heartbeatExecutor.shutdown();
+        }
 
         try {
             sendRequest(CommandType.LOGOUT, null);

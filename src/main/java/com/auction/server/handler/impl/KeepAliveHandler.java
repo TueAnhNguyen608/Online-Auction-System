@@ -8,6 +8,7 @@ public class KeepAliveHandler implements RequestHandler {
 
     @Override
     public ResponseMessage handle(Request request, String userId) throws Exception {
+        // Chỉ cần trả về OK, heartbeat đã được cập nhật ở dispatcher
         return ResponseMessage.success("OK", null);
     }
 }
