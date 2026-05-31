@@ -34,14 +34,14 @@ import java.util.stream.Collectors;
 
 public class ProductListPanel implements Initializable {
 
-    @FXML private Label     lblUserName;
-    @FXML private Button    btnTabDanhSach, btnTabDauGia, btnTabAutoBid;
-    @FXML private Button    btnQuayLai, btnSearch;
+    @FXML private Label lblUserName;
+    @FXML private Button btnTabDanhSach, btnTabDauGia, btnTabAutoBid;
+    @FXML private Button btnQuayLai, btnSearch;
     @FXML private TextField txtSearch;
-    @FXML private TableView<ProductRow>            tableProducts;
+    @FXML private TableView<ProductRow> tableProducts;
     @FXML private TableColumn<ProductRow, Integer> colStt;
-    @FXML private TableColumn<ProductRow, String>  colName, colPrice, colSeller, colTime;
-    @FXML private HBox   paginationBox;
+    @FXML private TableColumn<ProductRow, String> colName, colPrice, colSeller, colTime;
+    @FXML private HBox paginationBox;
     @FXML private Button btnFirst, btnPrev, btnNext, btnLast;
 
     private static final String TAB_INACTIVE =
@@ -78,11 +78,12 @@ public class ProductListPanel implements Initializable {
                     " -fx-font-weight: bold; -fx-pref-width: 36; -fx-pref-height: 36; -fx-cursor: hand;";
 
     private static final int ROW_HEIGHT = 55;
-    private static final int PAGE_SIZE  = 8;
+    private static final int PAGE_SIZE = 8;
     private int currentPage = 1;
     private final List<ProductRow> allProducts = new ArrayList<>();
-    private List<ProductRow> filteredProducts  = new ArrayList<>();
+    private List<ProductRow> filteredProducts = new ArrayList<>();
     private Timeline countdownTimer;
+    private boolean isLoading = false;
 
     private final Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
@@ -97,23 +98,31 @@ public class ProductListPanel implements Initializable {
         private String itemId;
 
         public ProductRow(int stt, String name, long price, String seller, long remainingSecs) {
-            this.stt = stt; this.name = name; this.price = price; this.seller = seller;
+            this.stt = stt;
+            this.name = name;
+            this.price = price;
+            this.seller = seller;
             this.remainingSeconds = remainingSecs;
             timeDisplay.set(fmt(remainingSeconds));
         }
-        public void tick() { if (remainingSeconds > 0) remainingSeconds--; timeDisplay.set(fmt(remainingSeconds)); }
+        public void tick() {
+            if (remainingSeconds > 0) {
+                remainingSeconds--;
+                timeDisplay.set(fmt(remainingSeconds));
+            }
+        }
         private static String fmt(long s) {
             if (s <= 0) return "Đã kết thúc";
-            long d=s/86400, h=(s%86400)/3600, m=(s%3600)/60, ss=s%60;
-            return d > 0 ? String.format("%d ngày %02d:%02d:%02d",d,h,m,ss) : String.format("%02d:%02d:%02d",h,m,ss);
+            long d = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60, ss = s % 60;
+            return d > 0 ? String.format("%d ngày %02d:%02d:%02d", d, h, m, ss) : String.format("%02d:%02d:%02d", h, m, ss);
         }
-        public int    getStt()               { return stt; }
-        public String getName()              { return name; }
-        public String getSeller()            { return seller; }
-        public long   getPrice()             { return price; }
-        public long   getRemainingSeconds()  { return remainingSeconds; }
-        public String getItemId()            { return itemId; }
-        public void   setItemId(String id)   { this.itemId = id; }
+        public int getStt() { return stt; }
+        public String getName() { return name; }
+        public String getSeller() { return seller; }
+        public long getPrice() { return price; }
+        public long getRemainingSeconds() { return remainingSeconds; }
+        public String getItemId() { return itemId; }
+        public void setItemId(String id) { this.itemId = id; }
         public StringProperty timeDisplayProperty() { return timeDisplay; }
         public String getFormattedPrice() { return String.format("%,d", price).replace(",", ".") + " đ"; }
     }
@@ -123,103 +132,95 @@ public class ProductListPanel implements Initializable {
         if (lblUserName != null && SessionManager.getCurrentUser() != null) {
             lblUserName.setText(SessionManager.getCurrentUser().getUsername());
         }
+
+        System.out.println("🔧 ProductListPanel.initialize() - Bắt đầu");
+
         tableProducts.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableProducts.setFixedCellSize(ROW_HEIGHT);
-        tableProducts.prefHeightProperty().bind(
-                tableProducts.fixedCellSizeProperty().multiply(PAGE_SIZE).add(44));
+        tableProducts.prefHeightProperty().bind(tableProducts.fixedCellSizeProperty().multiply(PAGE_SIZE).add(44));
         tableProducts.minHeightProperty().bind(tableProducts.prefHeightProperty());
         tableProducts.maxHeightProperty().bind(tableProducts.prefHeightProperty());
-
-        tableProducts.sceneProperty().addListener((obs, o, scene) -> {
-            if (scene != null) {
-                java.net.URL css = getClass().getResource("/css/bidding_style.css");
-                if (css != null) { String p = css.toExternalForm(); if (!scene.getStylesheets().contains(p)) scene.getStylesheets().add(p); }
-            }
-        });
 
         setupTableColumns();
         setupRowFactory();
         setupHoverEffects();
         loadData();
         setupSearchListener();
-        updateTable();
         startCountdown();
         styleNavButtons();
-        Platform.runLater(() -> Platform.runLater(() -> {
-            tableProducts.lookupAll(".column-header").forEach(node ->
-                    node.setStyle("-fx-background-color: #1E4268; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
-            tableProducts.lookupAll(".column-header .label").forEach(node ->
-                    node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 13px;"));
-            tableProducts.lookupAll(".column-header-background").forEach(node ->
-                    node.setStyle("-fx-background-color: #1E4268;"));
-            tableProducts.lookupAll(".filler").forEach(node ->
-                    node.setStyle("-fx-background-color: #1E4268;"));
-            javafx.scene.Node header = tableProducts.lookup("TableHeaderRow");
-            if (header != null)
-                header.setStyle("-fx-min-height: 45px; -fx-pref-height: 45px; -fx-max-height: 45px;");
-        }));
+
+        Platform.runLater(() -> {
+            if (tableProducts != null) {
+                tableProducts.lookupAll(".column-header").forEach(node ->
+                        node.setStyle("-fx-background-color: #1E4268; -fx-border-color: transparent #2A5090 transparent transparent; -fx-border-width: 0 1 0 0;"));
+                tableProducts.lookupAll(".column-header .label").forEach(node ->
+                        node.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 13px;"));
+                tableProducts.lookupAll(".column-header-background").forEach(node ->
+                        node.setStyle("-fx-background-color: #1E4268;"));
+                tableProducts.lookupAll(".filler").forEach(node ->
+                        node.setStyle("-fx-background-color: #1E4268;"));
+                javafx.scene.Node header = tableProducts.lookup("TableHeaderRow");
+                if (header != null)
+                    header.setStyle("-fx-min-height: 45px; -fx-pref-height: 45px; -fx-max-height: 45px;");
+            }
+        });
+
+        System.out.println("✅ ProductListPanel.initialize() - Hoàn tất");
     }
 
-    // 🔥 PHƯƠNG THỨC LOAD DỮ LIỆU CÓ CACHE
     private void loadData() {
+        if (isLoading) return;
+        isLoading = true;
+
+        Platform.runLater(() -> {
+            Label loadingLabel = new Label("⏳ Đang tải danh sách sản phẩm...");
+            loadingLabel.setStyle("-fx-text-fill: #CCDFF5; -fx-font-size: 13px;");
+            tableProducts.setPlaceholder(loadingLabel);
+        });
+
         new Thread(() -> {
             try {
-                // KIỂM TRA CACHE TRƯỚC
                 List<Item> cached = SessionManager.getCachedItems();
                 if (cached != null && !cached.isEmpty()) {
-                    System.out.println("✅ Dùng cache, hiển thị nhanh");
+                    System.out.println("✅ Dùng cache, hiển thị " + cached.size() + " sản phẩm");
                     updateUIWithItems(cached);
+                    isLoading = false;
                     return;
                 }
 
                 AuctionClient client = SessionManager.getClient();
-                if (client == null) {
-                    System.out.println("❌ ProductListPanel: Client is NULL!");
+                if (client == null || !client.isConnected()) {
                     Platform.runLater(() -> {
-                        tableProducts.setPlaceholder(new Label("❌ Chưa kết nối được đến server"));
+                        tableProducts.setPlaceholder(new Label("❌ Chưa kết nối server.\nVui lòng đăng nhập lại."));
+                        isLoading = false;
                     });
                     return;
                 }
 
-                System.out.println("📡 Đang gọi getActiveItems...");
                 ResponseMessage resp = client.getActiveItems();
-                System.out.println("📥 Response code: " + (resp != null ? resp.getCode() : "null"));
-
                 if (resp != null && resp.getCode() == ResponseCode.SUCCESS && resp.getData() != null) {
-                    System.out.println("📥 Response data: " + resp.getData());
-
                     String json = gson.toJson(resp.getData());
                     Type listType = new TypeToken<ArrayList<Item>>(){}.getType();
                     List<Item> items = gson.fromJson(json, listType);
-
                     if (items != null && !items.isEmpty()) {
                         System.out.println("✅ Loaded " + items.size() + " sản phẩm từ server");
-                        // LƯU VÀO CACHE
                         SessionManager.setCachedItems(items);
                         updateUIWithItems(items);
                     } else {
-                        System.out.println("⚠️ Không có sản phẩm nào từ server!");
-                        Platform.runLater(() -> {
-                            tableProducts.setPlaceholder(new Label("📭 Không có sản phẩm nào"));
-                        });
+                        Platform.runLater(() -> tableProducts.setPlaceholder(new Label("📭 Không có sản phẩm nào")));
                     }
                 } else {
-                    System.out.println("❌ Lỗi từ server: " + (resp != null ? resp.getMessage() : "null response"));
-                    Platform.runLater(() -> {
-                        tableProducts.setPlaceholder(new Label("❌ Lỗi tải dữ liệu: " + (resp != null ? resp.getMessage() : "Không có phản hồi")));
-                    });
+                    Platform.runLater(() -> tableProducts.setPlaceholder(new Label("❌ Lỗi: " + (resp != null ? resp.getMessage() : "Không có phản hồi"))));
                 }
             } catch (Exception e) {
-                System.out.println("❌ Exception khi load data: " + e.getMessage());
-                e.printStackTrace();
-                Platform.runLater(() -> {
-                    tableProducts.setPlaceholder(new Label("❌ Lỗi: " + e.getMessage()));
-                });
+                System.err.println("❌ Lỗi load data: " + e.getMessage());
+                Platform.runLater(() -> tableProducts.setPlaceholder(new Label("❌ Lỗi: " + e.getMessage())));
+            } finally {
+                isLoading = false;
             }
         }).start();
     }
 
-    // 🔥 PHƯƠNG THỨC CẬP NHẬT UI TỪ DANH SÁCH ITEMS
     private void updateUIWithItems(List<Item> items) {
         List<ProductRow> rows = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -240,31 +241,81 @@ public class ProductListPanel implements Initializable {
             allProducts.addAll(finalRows);
             filteredProducts = new ArrayList<>(allProducts);
             updateTable();
+            System.out.println("✅ Đã cập nhật bảng với " + finalRows.size() + " sản phẩm");
         });
     }
 
-    private void loadSampleData() {
-        allProducts.clear();
-        allProducts.add(new ProductRow( 1,"iPhone 15 Pro Max 1TB",          25_000_000L,"seller1", 7 * 86400L));
-        allProducts.add(new ProductRow( 2,"iPhone 15 Pro 512GB",            22_000_000L,"seller1", 5 * 86400L));
-        allProducts.add(new ProductRow( 3,"Samsung Galaxy S24 Ultra",       20_000_000L,"seller1",10 * 86400L));
-        allProducts.add(new ProductRow( 4,"Xiaomi 14 Ultra",                15_000_000L,"seller2", 6 * 86400L));
-        allProducts.add(new ProductRow( 5,"Google Pixel 8 Pro",             18_000_000L,"seller2", 8 * 86400L));
-        allProducts.add(new ProductRow( 6,"MacBook Pro M3 Max",             45_000_000L,"seller1",12 * 86400L));
-        allProducts.add(new ProductRow( 7,"Dell XPS 15",                    35_000_000L,"seller2", 9 * 86400L));
-        allProducts.add(new ProductRow( 8,"LG Gram 17",                     28_000_000L,"seller1", 7 * 86400L));
-        allProducts.add(new ProductRow( 9,"Asus ROG Zephyrus G14",          32_000_000L,"seller2",11 * 86400L));
-        allProducts.add(new ProductRow(10,"Sony WH-1000XM5",                 5_000_000L,"seller1", 4 * 86400L));
-        allProducts.add(new ProductRow(11,"AirPods Pro 2",                   4_500_000L,"seller1", 3 * 86400L));
-        allProducts.add(new ProductRow(12,"Bose QC Ultra",                   6_000_000L,"seller2", 5 * 86400L));
-        allProducts.add(new ProductRow(13,"Apple Watch Ultra 2",            15_000_000L,"seller1", 8 * 86400L));
-        allProducts.add(new ProductRow(14,"Samsung Galaxy Watch 6 Classic",  7_000_000L,"seller2", 6 * 86400L));
-        allProducts.add(new ProductRow(15,"Magic Keyboard",                  3_000_000L,"seller1",10 * 86400L));
-        allProducts.add(new ProductRow(16,"Logitech MX Master 3S",           2_000_000L,"seller2",15 * 86400L));
-        allProducts.add(new ProductRow(17,"iPad Pro 12.9 inch M2",          28_000_000L,"seller1",20 * 86400L));
-        allProducts.add(new ProductRow(18,"Samsung Tab S9 Ultra",           22_000_000L,"seller2",18 * 86400L));
-        filteredProducts = new ArrayList<>(allProducts);
-        updateTable();
+    private void setupTableColumns() {
+        colStt.setCellValueFactory(d -> new SimpleIntegerProperty(d.getValue().getStt()).asObject());
+        colStt.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Integer v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(String.valueOf(v));
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: #FFFFFF;");
+            }
+        });
+
+        colName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getName()));
+        colName.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(v);
+                setStyle("-fx-alignment: CENTER_LEFT; -fx-text-fill: #FFFFFF; -fx-padding: 0 0 0 14;");
+            }
+        });
+
+        colPrice.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getFormattedPrice()));
+        colPrice.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(v);
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: #F5C518; -fx-font-weight: bold;");
+            }
+        });
+
+        colSeller.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getSeller()));
+        colSeller.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(v);
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: #FFFFFF;");
+            }
+        });
+
+        colTime.setCellValueFactory(d -> d.getValue().timeDisplayProperty());
+        colTime.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String v, boolean empty) {
+                super.updateItem(v, empty);
+                if (empty || v == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(v);
+                String color = v.equals("Đã kết thúc") ? "#888888" : "#FF6B6B";
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: " + color + "; -fx-font-weight: bold;");
+            }
+        });
     }
 
     private void setupRowFactory() {
@@ -279,13 +330,14 @@ public class ProductListPanel implements Initializable {
                     setOnMouseClicked(null);
                 } else {
                     String normalBg = (getIndex() % 2 == 0) ? "#0e1c40" : "#162550";
-                    String normal   = "-fx-background-color: " + normalBg + "; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0;";
-                    String hover    = "-fx-background-color: #1E4268; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0; -fx-cursor: hand;";
+                    String normal = "-fx-background-color: " + normalBg + "; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0;";
+                    String hover = "-fx-background-color: #1E4268; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0; -fx-cursor: hand;";
                     String selected = "-fx-background-color: #2A5090; -fx-border-color: #F5C518; -fx-border-width: 1; -fx-cursor: hand;";
 
-                    if (isSelected()) setStyle(selected); else setStyle(normal);
+                    if (isSelected()) setStyle(selected);
+                    else setStyle(normal);
                     setOnMouseEntered(e -> { if (!isSelected()) setStyle(hover); });
-                    setOnMouseExited(e  -> { if (!isSelected()) setStyle(normal); else setStyle(selected); });
+                    setOnMouseExited(e -> { if (!isSelected()) setStyle(normal); else setStyle(selected); });
                     setOnMouseClicked(e -> {
                         tableProducts.getSelectionModel().select(getIndex());
                         tableProducts.refresh();
@@ -297,67 +349,19 @@ public class ProductListPanel implements Initializable {
                 tableProducts.getSelectionModel().selectedIndexProperty().addListener((obs, o, n) -> {
                     if (getIndex() < 0 || getItem() == null) return;
                     String normalBg = (getIndex() % 2 == 0) ? "#0e1c40" : "#162550";
-                    String normal   = "-fx-background-color: " + normalBg + "; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0;";
+                    String normal = "-fx-background-color: " + normalBg + "; -fx-border-color: #1A2F4A; -fx-border-width: 0 0 1 0;";
                     String selected = "-fx-background-color: #2A5090; -fx-border-color: #F5C518; -fx-border-width: 1; -fx-cursor: hand;";
-                    if (isSelected()) setStyle(selected); else setStyle(normal);
+                    if (isSelected()) setStyle(selected);
+                    else setStyle(normal);
                 });
             }
         });
     }
 
-    private void setupTableColumns() {
-        colStt.setCellValueFactory(d -> new SimpleIntegerProperty(d.getValue().getStt()).asObject());
-        colStt.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(Integer v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) { setText(null); setStyle(""); return; }
-                setText(String.valueOf(v));
-                setStyle("-fx-alignment: CENTER; -fx-text-fill: #FFFFFF;");
-            }
-        });
-        colName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getName()));
-        colName.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) { setText(null); setStyle(""); return; }
-                setText(v);
-                setStyle("-fx-alignment: CENTER_LEFT; -fx-text-fill: #FFFFFF; -fx-padding: 0 0 0 14;");
-            }
-        });
-        colPrice.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getFormattedPrice()));
-        colPrice.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) { setText(null); setStyle(""); return; }
-                setText(v);
-                setStyle("-fx-alignment: CENTER; -fx-text-fill: #F5C518; -fx-font-weight: bold;");
-            }
-        });
-        colSeller.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getSeller()));
-        colSeller.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) { setText(null); setStyle(""); return; }
-                setText(v);
-                setStyle("-fx-alignment: CENTER; -fx-text-fill: #FFFFFF;");
-            }
-        });
-        colTime.setCellValueFactory(d -> d.getValue().timeDisplayProperty());
-        colTime.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) { setText(null); setStyle(""); return; }
-                setText(v);
-                String color = v.equals("Đã kết thúc") ? "#888888" : "#FF6B6B";
-                setStyle("-fx-alignment: CENTER; -fx-text-fill: " + color + "; -fx-font-weight: bold;");
-            }
-        });
-    }
-
     private void setupHoverEffects() {
-        addHover(btnTabDauGia,  TAB_INACTIVE, TAB_HOVER);
+        addHover(btnTabDauGia, TAB_INACTIVE, TAB_HOVER);
         addHover(btnTabAutoBid, TAB_INACTIVE, TAB_HOVER);
-        addHover(btnQuayLai,    BTN_BACK_NORMAL, BTN_BACK_HOVER);
+        addHover(btnQuayLai, BTN_BACK_NORMAL, BTN_BACK_HOVER);
         String sn = "-fx-background-color: #2A5080; -fx-background-radius: 0 8 8 0; -fx-border-color: transparent; -fx-text-fill: #FFFFFF; -fx-font-size: 14px; -fx-padding: 8 18 8 16; -fx-pref-height: 42; -fx-cursor: hand;";
         String sh = "-fx-background-color: #F5C518; -fx-background-radius: 0 8 8 0; -fx-border-color: transparent; -fx-text-fill: #0A1929; -fx-font-size: 14px; -fx-padding: 8 18 8 16; -fx-pref-height: 42; -fx-cursor: hand;";
         addHover(btnSearch, sn, sh);
@@ -366,7 +370,7 @@ public class ProductListPanel implements Initializable {
 
     private void addHover(Button b, String n, String h) {
         b.setOnMouseEntered(e -> b.setStyle(h));
-        b.setOnMouseExited(e  -> b.setStyle(n));
+        b.setOnMouseExited(e -> b.setStyle(n));
     }
 
     private void styleNavButtons() {
@@ -396,7 +400,8 @@ public class ProductListPanel implements Initializable {
                     .filter(p -> p.getName().toLowerCase().contains(lower) || p.getSeller().toLowerCase().contains(lower))
                     .collect(Collectors.toList());
         }
-        currentPage = 1; updateTable();
+        currentPage = 1;
+        updateTable();
     }
 
     private void updateTable() {
@@ -404,7 +409,7 @@ public class ProductListPanel implements Initializable {
         int pages = Math.max(1, (int) Math.ceil((double) total / PAGE_SIZE));
         if (currentPage > pages) currentPage = pages;
         int from = (currentPage - 1) * PAGE_SIZE;
-        int to   = Math.min(from + PAGE_SIZE, total);
+        int to = Math.min(from + PAGE_SIZE, total);
         if (from < total) {
             tableProducts.setItems(FXCollections.observableArrayList(filteredProducts.subList(from, to)));
         } else {
@@ -427,19 +432,23 @@ public class ProductListPanel implements Initializable {
         }
     }
 
-    @FXML void onSearch()    { filterProducts(txtSearch.getText()); }
+    @FXML void onSearch() { filterProducts(txtSearch.getText()); }
     @FXML void onFirstPage() { currentPage = 1; updateTable(); }
-    @FXML void onLastPage()  { currentPage = Math.max(1,(int)Math.ceil((double)filteredProducts.size()/PAGE_SIZE)); updateTable(); }
-    @FXML void onPrevPage()  { if (currentPage > 1) { currentPage--; updateTable(); } }
-    @FXML void onNextPage()  { int t = Math.max(1,(int)Math.ceil((double)filteredProducts.size()/PAGE_SIZE)); if (currentPage < t) { currentPage++; updateTable(); } }
+    @FXML void onLastPage() { currentPage = Math.max(1, (int) Math.ceil((double) filteredProducts.size() / PAGE_SIZE)); updateTable(); }
+    @FXML void onPrevPage() { if (currentPage > 1) { currentPage--; updateTable(); } }
+    @FXML void onNextPage() { int pages = Math.max(1, (int) Math.ceil((double) filteredProducts.size() / PAGE_SIZE)); if (currentPage < pages) { currentPage++; updateTable(); } }
 
-    @FXML void onTabDanhSach() { }
+    @FXML void onTabDanhSach() {
+        System.out.println("🔄 Refresh danh sách sản phẩm");
+        loadData();
+    }
 
     @FXML void onTabDauGia() {
         ProductRow selected = tableProducts.getSelectionModel().getSelectedItem();
         if (selected == null) {
             Alert a = new Alert(Alert.AlertType.WARNING);
-            a.setTitle("Thông báo"); a.setHeaderText(null);
+            a.setTitle("Thông báo");
+            a.setHeaderText(null);
             a.setContentText("Vui lòng chọn 1 sản phẩm để đấu giá.");
             a.showAndWait();
             return;
@@ -448,7 +457,11 @@ public class ProductListPanel implements Initializable {
     }
 
     @FXML void onTabAutoBid() { navigate("/fxml/bidding/AutoBidPanel.fxml"); }
-    @FXML void onQuayLai()    { navigate("/fxml/bidding/MainDashboardUI.fxml"); }
+
+    @FXML void onQuayLai() {
+        if (countdownTimer != null) countdownTimer.stop();
+        navigate("/fxml/bidding/MainDashboardUI.fxml");
+    }
 
     private void navigate(String fxmlPath) {
         try {
@@ -456,15 +469,21 @@ public class ProductListPanel implements Initializable {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
             Stage stage = (Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
-        } catch (Exception ex) { ex.printStackTrace(); }
+            Scene scene = new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight());
+            URL css = getClass().getResource("/css/bidding_style.css");
+            if (css != null) scene.getStylesheets().add(css.toExternalForm());
+            stage.setScene(scene);
+            stage.setTitle("Hệ thống đấu giá");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showAlert("Lỗi chuyển màn hình: " + ex.getMessage());
+        }
     }
 
     private void openProductDetail(ProductRow product) {
         try {
             if (countdownTimer != null) countdownTimer.stop();
-            FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource("/fxml/bidding/ProductDetailPanel.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/bidding/ProductDetailPanel.fxml"));
             Parent root = loader.load();
             ProductDetailPanel controller = loader.getController();
             controller.loadProduct(
@@ -473,31 +492,47 @@ public class ProductListPanel implements Initializable {
                     getImagePath(product.getName()));
             if (product.getItemId() != null) controller.setItemId(product.getItemId());
             Stage stage = (Stage) tableProducts.getScene().getWindow();
-            stage.setScene(new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight()));
-        } catch (Exception ex) { ex.printStackTrace(); }
+            Scene scene = new Scene(root, stage.getScene().getWidth(), stage.getScene().getHeight());
+            URL css = getClass().getResource("/css/bidding_style.css");
+            if (css != null) scene.getStylesheets().add(css.toExternalForm());
+            stage.setScene(scene);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showAlert("Lỗi mở chi tiết sản phẩm: " + ex.getMessage());
+        }
     }
 
     private String getImagePath(String productName) {
         if (productName == null) return "/icons/sp1.png";
         String name = productName.toLowerCase();
-        if (name.contains("iphone 15 pro max"))    return "/icons/sp1.png";
-        if (name.contains("iphone 15 pro"))        return "/icons/sp2.png";
-        if (name.contains("samsung galaxy s24"))   return "/icons/sp3.png";
-        if (name.contains("xiaomi 14"))            return "/icons/sp4.png";
-        if (name.contains("google pixel"))         return "/icons/sp5.png";
-        if (name.contains("macbook pro m3 max"))   return "/icons/sp6.png";
-        if (name.contains("dell xps"))             return "/icons/sp7.png";
-        if (name.contains("lg gram"))              return "/icons/sp8.png";
-        if (name.contains("asus rog"))             return "/icons/sp9.png";
-        if (name.contains("sony wh"))              return "/icons/sp10.png";
-        if (name.contains("airpods pro"))          return "/icons/sp11.png";
-        if (name.contains("bose"))                 return "/icons/sp12.png";
-        if (name.contains("apple watch ultra"))    return "/icons/sp13.png";
-        if (name.contains("samsung galaxy watch")) return "/icons/sp14.png";
-        if (name.contains("magic keyboard"))       return "/icons/sp15.png";
-        if (name.contains("logitech"))             return "/icons/sp16.png";
-        if (name.contains("ipad pro"))             return "/icons/sp17.png";
-        if (name.contains("samsung tab"))          return "/icons/sp18.png";
+
+        if (name.contains("iphone 15 pro max")) return "/icons/sp1.png";
+        if (name.contains("iphone 15 pro")) return "/icons/sp2.png";
+        if (name.contains("samsung galaxy s24 ultra")) return "/icons/sp3.png";
+        if (name.contains("xiaomi 14 ultra")) return "/icons/sp4.png";
+        if (name.contains("google pixel 8 pro")) return "/icons/sp5.png";
+        if (name.contains("macbook pro m3 max")) return "/icons/sp6.png";
+        if (name.contains("dell xps 15")) return "/icons/sp7.png";
+        if (name.contains("lg gram 17")) return "/icons/sp8.png";
+        if (name.contains("asus rog zephyrus g14")) return "/icons/sp9.png";
+        if (name.contains("sony wh-1000xm5")) return "/icons/sp10.png";
+        if (name.contains("airpods pro 2")) return "/icons/sp11.png";
+        if (name.contains("bose qc ultra")) return "/icons/sp12.png";
+        if (name.contains("apple watch ultra 2")) return "/icons/sp13.png";
+        if (name.contains("samsung galaxy watch 6 classic")) return "/icons/sp14.png";
+        if (name.contains("magic keyboard")) return "/icons/sp15.png";
+        if (name.contains("logitech mx master 3s")) return "/icons/sp16.png";
+        if (name.contains("ipad pro 12.9 inch m2")) return "/icons/sp17.png";
+        if (name.contains("samsung tab s9 ultra")) return "/icons/sp18.png";
+
         return "/icons/sp1.png";
+    }
+
+    private void showAlert(String msg) {
+        Alert a = new Alert(Alert.AlertType.ERROR);
+        a.setTitle("Lỗi");
+        a.setHeaderText(null);
+        a.setContentText(msg);
+        a.showAndWait();
     }
 }

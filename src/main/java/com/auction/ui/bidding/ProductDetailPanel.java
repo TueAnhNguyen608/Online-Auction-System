@@ -31,36 +31,20 @@ import java.util.*;
 
 public class ProductDetailPanel implements Initializable {
 
-    @FXML
-    private Label lblUserName;
-    @FXML
-    private Button btnTabDanhSach, btnTabDauGia, btnTabAutoBid;
-    @FXML
-    private Button btnBack;
-
-    @FXML
-    private Label lblProductName, lblDesc, lblCategory;
-    @FXML
-    private Label lblCondition, lblSeller, lblPostedDate;
-    @FXML
-    private TableView<BidRow> tableBidHistory;
-    @FXML
-    private TableColumn<BidRow, String> colBidNo, colBidder, colBidAmount, colBidTime;
-
-    @FXML
-    private HBox imgContainer;
-    @FXML
-    private javafx.scene.image.ImageView imgProduct;
-    @FXML
-    private Label lblCurrentPrice, lblMinStep, lblTimeLeft;
-    @FXML
-    private Label lblBidCount, lblStatus;
-    @FXML
-    private TextField txtBidAmount;
-    @FXML
-    private Label lblBidWarning;
-    @FXML
-    private Button btnPlaceBid;
+    @FXML private Label lblUserName;
+    @FXML private Button btnTabDanhSach, btnTabDauGia, btnTabAutoBid;
+    @FXML private Button btnBack;
+    @FXML private Label lblProductName, lblDesc, lblCategory;
+    @FXML private Label lblCondition, lblSeller, lblPostedDate;
+    @FXML private TableView<BidRow> tableBidHistory;
+    @FXML private TableColumn<BidRow, String> colBidNo, colBidder, colBidAmount, colBidTime;
+    @FXML private HBox imgContainer;
+    @FXML private javafx.scene.image.ImageView imgProduct;
+    @FXML private Label lblCurrentPrice, lblMinStep, lblTimeLeft;
+    @FXML private Label lblBidCount, lblStatus;
+    @FXML private TextField txtBidAmount;
+    @FXML private Label lblBidWarning;
+    @FXML private Button btnPlaceBid;
 
     private static final String TAB_INACTIVE =
             "-fx-background-color: #0e1c40; -fx-text-fill: #CCDFF5; -fx-font-weight: bold;" +
@@ -81,9 +65,9 @@ public class ProductDetailPanel implements Initializable {
                     " -fx-background-radius: 6; -fx-border-radius: 6;" +
                     " -fx-effect: dropshadow(gaussian,rgba(245,197,24,0.5),10,0,0,2);";
 
-    private long remainingSeconds = 6 * 86400L + 23 * 3600L + 52 * 60L + 47L;
-    private long currentPrice = 24_500_000L;
-    private long minStep = 500_000L;
+    private long remainingSeconds = 7 * 86400L;
+    private long currentPrice = 25000000L;
+    private long minStep = 500000L;
     private Timeline countdownTimer;
     private String itemId;
     private String currentUsername = "Bạn";
@@ -94,29 +78,13 @@ public class ProductDetailPanel implements Initializable {
 
     public static class BidRow {
         private final String no, bidder, amount, time;
-
         public BidRow(String no, String bidder, String amount, String time) {
-            this.no = no;
-            this.bidder = bidder;
-            this.amount = amount;
-            this.time = time;
+            this.no = no; this.bidder = bidder; this.amount = amount; this.time = time;
         }
-
-        public String getNo() {
-            return no;
-        }
-
-        public String getBidder() {
-            return bidder;
-        }
-
-        public String getAmount() {
-            return amount;
-        }
-
-        public String getTime() {
-            return time;
-        }
+        public String getNo() { return no; }
+        public String getBidder() { return bidder; }
+        public String getAmount() { return amount; }
+        public String getTime() { return time; }
     }
 
     @Override
@@ -132,6 +100,7 @@ public class ProductDetailPanel implements Initializable {
         bindImageSize();
         startCountdown();
         styleHeaderTable();
+        System.out.println("🔧 ProductDetailPanel.initialize() - Hoàn tất");
     }
 
     public void setItemId(String id) {
@@ -144,7 +113,7 @@ public class ProductDetailPanel implements Initializable {
         if (countdownTimer != null) countdownTimer.stop();
         currentPrice = price;
         remainingSeconds = remainingSecondsIn;
-        minStep = 500_000L;
+        minStep = 500000L;
 
         lblProductName.setText(name);
         lblSeller.setText(seller);
@@ -156,8 +125,9 @@ public class ProductDetailPanel implements Initializable {
         lblBidWarning.setStyle("-fx-text-fill: #F5C518; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
         tableBidHistory.setItems(FXCollections.observableArrayList());
 
-        loadProductImage(name, imagePath);
+        loadProductImage(name);
         startCountdown();
+        System.out.println("📱 Load sản phẩm: " + name + " - Giá: " + formatPrice(price));
     }
 
     private void loadBidHistoryFromServer() {
@@ -168,8 +138,7 @@ public class ProductDetailPanel implements Initializable {
                 if (client == null) return;
                 ResponseMessage resp = client.getBidHistory(itemId);
                 if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
-                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Bid>>() {
-                    }.getType();
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Bid>>(){}.getType();
                     List<Bid> bids = gson.fromJson(gson.toJson(resp.getData()), listType);
                     if (bids != null) {
                         List<BidRow> rows = new ArrayList<>();
@@ -196,31 +165,36 @@ public class ProductDetailPanel implements Initializable {
         }).start();
     }
 
-    private void loadProductImage(String productName, String fallbackPath) {
-        String imageUrl = getProductImageUrl(productName);
+    // 🔥 Load ảnh từ thư mục icons (sp1.png → sp18.png)
+    private void loadProductImage(String productName) {
+        String imagePath = getImagePath(productName);
+
         new Thread(() -> {
             try {
                 javafx.scene.image.Image img = null;
-                if (imageUrl != null) {
-                    try {
-                        img = new javafx.scene.image.Image(imageUrl, 400, 300, true, true, true);
-                        if (img.isError()) img = null;
-                    } catch (Exception ignored) {
+
+                if (imagePath != null) {
+                    java.net.URL imgUrl = getClass().getResource(imagePath);
+                    if (imgUrl != null) {
+                        img = new javafx.scene.image.Image(imgUrl.toExternalForm(), 400, 300, true, true, true);
+                        System.out.println("✅ Đã tải ảnh: " + imagePath + " cho sản phẩm: " + productName);
+                    } else {
+                        System.out.println("⚠️ Không tìm thấy ảnh: " + imagePath);
                     }
                 }
-                if (img == null && fallbackPath != null) {
-                    try {
-                        java.net.URL imgUrl = getClass().getResource(fallbackPath);
-                        if (imgUrl == null) imgUrl = getClass().getResource("/icons/sp1.png");
-                        if (imgUrl != null) {
-                            img = new javafx.scene.image.Image(imgUrl.toExternalForm());
-                        }
-                    } catch (Exception ignored) {
+
+                // Fallback: ảnh mặc định sp1.png
+                if (img == null || img.isError()) {
+                    java.net.URL defaultUrl = getClass().getResource("/icons/sp1.png");
+                    if (defaultUrl != null) {
+                        img = new javafx.scene.image.Image(defaultUrl.toExternalForm(), 400, 300, true, true, true);
+                        System.out.println("📦 Dùng ảnh mặc định: /icons/sp1.png");
                     }
                 }
+
                 final javafx.scene.image.Image finalImg = img;
                 Platform.runLater(() -> {
-                    if (finalImg != null) {
+                    if (finalImg != null && !finalImg.isError()) {
                         imgProduct.setImage(finalImg);
                     }
                 });
@@ -230,32 +204,31 @@ public class ProductDetailPanel implements Initializable {
         }).start();
     }
 
-    private String getProductImageUrl(String name) {
-        if (name == null) return null;
-        String l = name.toLowerCase();
-        if (l.contains("iphone 15 pro max"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-15-pro-max-black-titanium-select?wid=470&hei=556&fmt=png-alpha";
-        if (l.contains("iphone 15 pro"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-15-pro-black-titanium-select?wid=470&hei=556&fmt=png-alpha";
-        if (l.contains("samsung galaxy s24 ultra"))
-            return "https://images.samsung.com/is/image/samsung/p6pim/levant/2401/gallery/levant-galaxy-s24-ultra-s928-sm-s928bzageub-thumb-539573242";
-        if (l.contains("macbook pro m3 max"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/mbp14-m3-pro-max-spacegray-select-202310?wid=452&hei=420&fmt=jpeg&qlt=95";
-        if (l.contains("dell xps"))
-            return "https://i.dell.com/sites/csimages/App-Merchandizing_Images/all/xps-15-9530-pdp-module1.jpg";
-        if (l.contains("asus rog") || l.contains("rog zephyrus"))
-            return "https://dlcdnwebimgs.asus.com/gain/F1F41893-CC63-418E-9F96-F6A31EC7A38F/w717/h525";
-        if (l.contains("sony wh") || l.contains("wh-1000"))
-            return "https://www.sony.com/image/5d02da5df552836db894cead401a464b?fmt=png-alpha&wid=440";
-        if (l.contains("airpods pro"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MQD83?wid=532&hei=582&fmt=png-alpha";
-        if (l.contains("bose"))
-            return "https://assets.bose.com/content/dam/Bose_DAM/Web/consumer_electronics/global/products/headphones/quietcomfort_ultra_headphones/product_silo_images/QuietComfort_Ultra_Headphones_Black_EC_hero.png/jcr:content/renditions/cq5dam.web.600.600.png";
-        if (l.contains("apple watch ultra"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/watch-ultra2-49-lead-titanium-natural-titanium-band-S?wid=470&hei=556&fmt=png-alpha";
-        if (l.contains("ipad pro"))
-            return "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/ipad-pro-13-select-wifi-spacegray-202405?wid=470&hei=556&fmt=png-alpha";
-        return null;
+    // 🔥 Map tên sản phẩm → ảnh sp1.png → sp18.png
+    private String getImagePath(String productName) {
+        if (productName == null) return "/icons/sp1.png";
+        String name = productName.toLowerCase();
+
+        if (name.contains("iphone 15 pro max")) return "/icons/sp1.png";
+        if (name.contains("iphone 15 pro")) return "/icons/sp2.png";
+        if (name.contains("samsung galaxy s24 ultra")) return "/icons/sp3.png";
+        if (name.contains("xiaomi 14 ultra")) return "/icons/sp4.png";
+        if (name.contains("google pixel 8 pro")) return "/icons/sp5.png";
+        if (name.contains("macbook pro m3 max")) return "/icons/sp6.png";
+        if (name.contains("dell xps 15")) return "/icons/sp7.png";
+        if (name.contains("lg gram 17")) return "/icons/sp8.png";
+        if (name.contains("asus rog zephyrus g14")) return "/icons/sp9.png";
+        if (name.contains("sony wh-1000xm5")) return "/icons/sp10.png";
+        if (name.contains("airpods pro 2")) return "/icons/sp11.png";
+        if (name.contains("bose qc ultra")) return "/icons/sp12.png";
+        if (name.contains("apple watch ultra 2")) return "/icons/sp13.png";
+        if (name.contains("samsung galaxy watch 6 classic")) return "/icons/sp14.png";
+        if (name.contains("magic keyboard")) return "/icons/sp15.png";
+        if (name.contains("logitech mx master 3s")) return "/icons/sp16.png";
+        if (name.contains("ipad pro 12.9 inch m2")) return "/icons/sp17.png";
+        if (name.contains("samsung tab s9 ultra")) return "/icons/sp18.png";
+
+        return "/icons/sp1.png";
     }
 
     private void bindImageSize() {
@@ -326,24 +299,19 @@ public class ProductDetailPanel implements Initializable {
         b.setOnMouseExited(e -> b.setStyle(n));
     }
 
-    @FXML
-    void onTabDanhSach() {
+    @FXML void onTabDanhSach() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/ProductListPanel.fxml");
     }
 
-    @FXML
-    void onTabDauGia() {
-    }
+    @FXML void onTabDauGia() {}
 
-    @FXML
-    void onTabAutoBid() {
+    @FXML void onTabAutoBid() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/AutoBidPanel.fxml");
     }
 
-    @FXML
-    void onBack() {
+    @FXML void onBack() {
         if (countdownTimer != null) countdownTimer.stop();
         navigate("/fxml/bidding/ProductListPanel.fxml");
     }
@@ -359,8 +327,7 @@ public class ProductDetailPanel implements Initializable {
         }
     }
 
-    @FXML
-    void onBidUp() {
+    @FXML void onBidUp() {
         try {
             long cur = txtBidAmount.getText().trim().isEmpty() ? currentPrice
                     : Long.parseLong(txtBidAmount.getText().trim().replaceAll("[^0-9]", ""));
@@ -370,19 +337,16 @@ public class ProductDetailPanel implements Initializable {
         }
     }
 
-    @FXML
-    void onBidDown() {
+    @FXML void onBidDown() {
         try {
             long cur = txtBidAmount.getText().trim().isEmpty() ? currentPrice + minStep
                     : Long.parseLong(txtBidAmount.getText().trim().replaceAll("[^0-9]", ""));
             long next = cur - minStep;
             if (next > 0) txtBidAmount.setText(String.valueOf(next));
-        } catch (NumberFormatException ignored) {
-        }
+        } catch (NumberFormatException ignored) {}
     }
 
-    @FXML
-    void onPlaceBid() {
+    @FXML void onPlaceBid() {
         String input = txtBidAmount.getText().trim();
         try {
             long amount = Long.parseLong(input.replaceAll("[^0-9]", ""));
@@ -416,11 +380,7 @@ public class ProductDetailPanel implements Initializable {
                                 lblBidWarning.setText("✓ Đặt giá thành công: " + formatPrice(bidAmount));
                                 lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
                                 txtBidAmount.clear();
-
-                                // 🔥 CẬP NHẬT LỊCH SỬ NGAY LẬP TỨC - KHÔNG CHỜ SERVER
                                 addBidHistoryLocally(bidderName, bidAmount, nowTime);
-
-                                // Gọi server để đồng bộ (chạy ngầm, không block UI)
                                 loadBidHistoryFromServer();
                             } else {
                                 lblBidWarning.setText("✕ " + (resp != null ? resp.getMessage() : "Lỗi đặt giá"));
@@ -437,25 +397,12 @@ public class ProductDetailPanel implements Initializable {
                 return;
             }
 
-            // Fallback cho demo không cần server
             currentPrice = amount;
             lblCurrentPrice.setText(formatPrice(currentPrice));
             lblBidWarning.setText("✓ Đặt giá thành công: " + formatPrice(amount));
             lblBidWarning.setStyle("-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
-
             String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
-            int newNo = tableBidHistory.getItems().size() + 1;
-            BidRow newRow = new BidRow(String.valueOf(newNo), currentUsername, formatPrice(amount), now);
-            List<BidRow> updated = new ArrayList<>();
-            updated.add(newRow);
-            updated.addAll(tableBidHistory.getItems());
-            List<BidRow> renumbered = new ArrayList<>();
-            for (int i = 0; i < updated.size(); i++) {
-                BidRow r = updated.get(i);
-                renumbered.add(new BidRow(String.valueOf(i + 1), r.getBidder(), r.getAmount(), r.getTime()));
-            }
-            tableBidHistory.setItems(FXCollections.observableArrayList(renumbered));
-            lblBidCount.setText(String.valueOf(renumbered.size()));
+            addBidHistoryLocally(currentUsername, amount, now);
             txtBidAmount.clear();
 
         } catch (NumberFormatException ex) {
@@ -464,26 +411,20 @@ public class ProductDetailPanel implements Initializable {
         }
     }
 
-    // 🔥 THÊM METHOD NÀY ĐỂ CẬP NHẬT LỊCH SỬ NGAY LẬP TỨC
     private void addBidHistoryLocally(String bidderName, long amount, String time) {
         Platform.runLater(() -> {
             int newNo = tableBidHistory.getItems().size() + 1;
             BidRow newRow = new BidRow(String.valueOf(newNo), bidderName, formatPrice(amount), time);
-
             List<BidRow> updated = new ArrayList<>();
             updated.add(newRow);
             updated.addAll(tableBidHistory.getItems());
-
             List<BidRow> renumbered = new ArrayList<>();
             for (int i = 0; i < updated.size(); i++) {
                 BidRow r = updated.get(i);
                 renumbered.add(new BidRow(String.valueOf(i + 1), r.getBidder(), r.getAmount(), r.getTime()));
             }
-
             tableBidHistory.setItems(FXCollections.observableArrayList(renumbered));
             lblBidCount.setText(String.valueOf(renumbered.size()));
-
-            // Cuộn lên đầu để thấy dòng mới nhất
             tableBidHistory.scrollTo(0);
         });
     }

@@ -40,18 +40,18 @@ import java.util.ResourceBundle;
 
 public class MainDashboardUI implements Initializable {
 
-    @FXML private Label  usernameLabel;
-    @FXML private Label  welcomeLabel;
-    @FXML private Label  statTotal;
-    @FXML private Label  statSessions;
-    @FXML private Label  statValue;
-    @FXML private Label  statEnding;
+    @FXML private Label usernameLabel;
+    @FXML private Label welcomeLabel;
+    @FXML private Label statTotal;
+    @FXML private Label statSessions;
+    @FXML private Label statValue;
+    @FXML private Label statEnding;
     @FXML private Button btnNotification;
-    @FXML private Label  lblNotifCount;
-    @FXML private Label  statTotalSub;
-    @FXML private Label  statSessionsSub;
-    @FXML private Label  statEndingSub;
-    @FXML private HBox   userMenuBox;
+    @FXML private Label lblNotifCount;
+    @FXML private Label statTotalSub;
+    @FXML private Label statSessionsSub;
+    @FXML private Label statEndingSub;
+    @FXML private HBox userMenuBox;
 
     private static String currentUser = "User";
     private Popup userMenuPopup;
@@ -74,12 +74,13 @@ public class MainDashboardUI implements Initializable {
         if (userMenuBox != null) {
             userMenuBox.setOnMouseClicked(e -> showUserMenu());
         }
+        System.out.println("🔧 MainDashboardUI.initialize() - Hoàn tất, user=" + currentUser);
     }
 
-    // ── Dropdown menu user ────────────────────────────────────────
     private void showUserMenu() {
         if (userMenuPopup != null && userMenuPopup.isShowing()) {
-            userMenuPopup.hide(); return;
+            userMenuPopup.hide();
+            return;
         }
         userMenuPopup = new Popup();
         userMenuPopup.setAutoHide(true);
@@ -115,7 +116,6 @@ public class MainDashboardUI implements Initializable {
                 bounds.getMaxX() - 200, bounds.getMaxY() + 4);
     }
 
-    // ── Submenu đăng xuất ────────────────────────────────────────
     private void showLogoutMenu() {
         Popup logoutPopup = new Popup();
         logoutPopup.setAutoHide(true);
@@ -169,10 +169,10 @@ public class MainDashboardUI implements Initializable {
         lbl.setMaxWidth(Double.MAX_VALUE);
         lbl.setCursor(javafx.scene.Cursor.HAND);
         String normal = "-fx-background-color: transparent;";
-        String hover  = "-fx-background-color: #162550;";
+        String hover = "-fx-background-color: #162550;";
         lbl.setStyle(normal);
         lbl.setOnMouseEntered(e -> lbl.setStyle(hover));
-        lbl.setOnMouseExited(e  -> lbl.setStyle(normal));
+        lbl.setOnMouseExited(e -> lbl.setStyle(normal));
         return lbl;
     }
 
@@ -212,7 +212,6 @@ public class MainDashboardUI implements Initializable {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // ── Dialog Thông tin cá nhân ─────────────────────────────────
     private void showProfileDialog() {
         User user = SessionManager.getCurrentUser();
         if (user == null) return;
@@ -241,7 +240,7 @@ public class MainDashboardUI implements Initializable {
                 infoRow("Số dư:", String.format("%,.0f đ", user.getBalance()).replace(",", "."))
         );
 
-        Label lblInfoTitle = new Label("✏️  Thông tin cá nhân");
+        Label lblInfoTitle = new Label("✏️  Thông tin liên hệ");
         lblInfoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         lblInfoTitle.setTextFill(Color.web("#CCDFF5"));
 
@@ -279,12 +278,13 @@ public class MainDashboardUI implements Initializable {
         btnSaveEmail.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         btnSaveEmail.setStyle("-fx-background-color: #22c55e; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand;");
         btnSaveEmail.setOnAction(e -> {
-            String newEmail    = txtEmail.getText().trim();
+            String newEmail = txtEmail.getText().trim();
             String newFullName = txtFullName.getText().trim();
-            String newPhone    = txtPhone.getText().trim();
+            String newPhone = txtPhone.getText().trim();
             if (newEmail.isEmpty()) {
                 lblEmailMsg.setText("Vui lòng nhập email!");
-                lblEmailMsg.setTextFill(Color.web("#ef4444")); return;
+                lblEmailMsg.setTextFill(Color.web("#ef4444"));
+                return;
             }
             new Thread(() -> {
                 try {
@@ -346,7 +346,7 @@ public class MainDashboardUI implements Initializable {
         txtOldPass.setStyle(inputStyle());
 
         PasswordField txtNewPass = new PasswordField();
-        txtNewPass.setPromptText("Mật khẩu mới");
+        txtNewPass.setPromptText("Mật khẩu mới (≥6 ký tự)");
         txtNewPass.setStyle(inputStyle());
 
         PasswordField txtConfPass = new PasswordField();
@@ -363,20 +363,23 @@ public class MainDashboardUI implements Initializable {
         btnChangePass.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         btnChangePass.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand;");
         btnChangePass.setOnAction(e -> {
-            String oldPass  = txtOldPass.getText().trim();
-            String newPass  = txtNewPass.getText().trim();
+            String oldPass = txtOldPass.getText().trim();
+            String newPass = txtNewPass.getText().trim();
             String confPass = txtConfPass.getText().trim();
             if (oldPass.isEmpty() || newPass.isEmpty() || confPass.isEmpty()) {
                 lblPassMsg.setText("Vui lòng nhập đầy đủ!");
-                lblPassMsg.setTextFill(Color.web("#ef4444")); return;
+                lblPassMsg.setTextFill(Color.web("#ef4444"));
+                return;
             }
             if (!newPass.equals(confPass)) {
                 lblPassMsg.setText("Mật khẩu mới không khớp!");
-                lblPassMsg.setTextFill(Color.web("#ef4444")); return;
+                lblPassMsg.setTextFill(Color.web("#ef4444"));
+                return;
             }
             if (newPass.length() < 6) {
                 lblPassMsg.setText("Mật khẩu tối thiểu 6 ký tự!");
-                lblPassMsg.setTextFill(Color.web("#ef4444")); return;
+                lblPassMsg.setTextFill(Color.web("#ef4444"));
+                return;
             }
             new Thread(() -> {
                 try {
@@ -390,7 +393,9 @@ public class MainDashboardUI implements Initializable {
                         if (resp != null && resp.getCode() == ResponseCode.SUCCESS) {
                             lblPassMsg.setText("✅ Đổi mật khẩu thành công!");
                             lblPassMsg.setTextFill(Color.web("#22c55e"));
-                            txtOldPass.clear(); txtNewPass.clear(); txtConfPass.clear();
+                            txtOldPass.clear();
+                            txtNewPass.clear();
+                            txtConfPass.clear();
                             SessionManager.clearPassword(user.getUsername());
                         } else {
                             lblPassMsg.setText("✕ " + (resp != null ? resp.getMessage() : "Lỗi server"));
@@ -427,7 +432,7 @@ public class MainDashboardUI implements Initializable {
         scroll.setStyle("-fx-background-color: #0e1c40; -fx-background: #0e1c40;");
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        Scene scene = new Scene(scroll, 440, 480);
+        Scene scene = new Scene(scroll, 440, 520);
         scene.setFill(Color.web("#0e1c40"));
         dialog.setScene(scene);
         dialog.show();
@@ -454,7 +459,6 @@ public class MainDashboardUI implements Initializable {
                 "-fx-font-size: 13; -fx-pref-height: 38; -fx-padding: 0 12;";
     }
 
-    // ── Load stats ───────────────────────────────────────────────
     private void loadStats() {
         new Thread(() -> {
             try {
@@ -471,8 +475,7 @@ public class MainDashboardUI implements Initializable {
                             totalValue += (long) item.getCurrentPrice();
                             if (item.getStatus() == ItemStatus.ACTIVE) active++;
                             if (item.getEndTime() != null) {
-                                long secs = java.time.Duration.between(
-                                        LocalDateTime.now(), item.getEndTime()).getSeconds();
+                                long secs = java.time.Duration.between(LocalDateTime.now(), item.getEndTime()).getSeconds();
                                 if (secs > 0 && secs <= 86400) ending++;
                             }
                         }
@@ -480,29 +483,29 @@ public class MainDashboardUI implements Initializable {
                         final long fValue = totalValue;
                         Platform.runLater(() -> {
                             statTotal.setText(String.valueOf(fTotal));
-                            statTotalSub.setText("+" + fTotal + " sản phẩm đang đấu giá");
+                            statTotalSub.setText("+" + fTotal + " sản phẩm");
                             statSessions.setText(String.valueOf(fTotal));
                             statSessionsSub.setText("Đang diễn ra: " + fActive);
                             statValue.setText(String.format("%,d", fValue).replace(",", ".") + " đ");
                             statEnding.setText(String.valueOf(fEnding));
-                            statEndingSub.setText(fEnding > 0 ? "Trong 24 giờ tới" : "Không có phiên nào");
+                            statEndingSub.setText(fEnding > 0 ? "Trong 24 giờ tới" : "Không có phiên");
                         });
                         return;
                     }
                 }
             } catch (Exception e) {
-                System.out.println("⚠ Dùng stats mẫu: " + e.getMessage());
+                System.out.println("Lỗi load stats: " + e.getMessage());
             }
             Platform.runLater(this::loadSampleStats);
         }).start();
     }
 
     private void loadSampleStats() {
-        long[] prices = {25_000_000L,22_000_000L,20_000_000L,15_000_000L,18_000_000L,
-                45_000_000L,35_000_000L,28_000_000L,32_000_000L,5_000_000L,
-                4_500_000L,6_000_000L,15_000_000L,7_000_000L,3_000_000L,
-                2_000_000L,28_000_000L,22_000_000L};
-        long[] days = {7,5,10,6,8,12,9,7,11,4,3,5,8,6,10,15,20,18};
+        long[] prices = {25000000, 22000000, 20000000, 15000000, 18000000,
+                45000000, 35000000, 28000000, 32000000, 5000000,
+                4500000, 6000000, 15000000, 7000000, 3000000,
+                2000000, 28000000, 22000000};
+        long[] days = {7, 5, 10, 6, 8, 12, 9, 7, 11, 4, 3, 5, 8, 6, 10, 15, 20, 18};
         int total = prices.length, active = 0, ending = 0;
         long totalValue = 0;
         for (int i = 0; i < total; i++) {
@@ -511,12 +514,12 @@ public class MainDashboardUI implements Initializable {
             if (days[i] == 0) ending++;
         }
         statTotal.setText(String.valueOf(total));
-        statTotalSub.setText("+" + total + " sản phẩm đang đấu giá");
+        statTotalSub.setText("+" + total + " sản phẩm");
         statSessions.setText(String.valueOf(total));
         statSessionsSub.setText("Đang diễn ra: " + active);
         statValue.setText(String.format("%,d", totalValue).replace(",", ".") + " đ");
         statEnding.setText(String.valueOf(ending));
-        statEndingSub.setText(ending > 0 ? "Trong 24 giờ tới" : "Không có phiên nào");
+        statEndingSub.setText(ending > 0 ? "Trong 24 giờ tới" : "Không có phiên");
     }
 
     private void countUnreadNotifications() {
@@ -560,14 +563,13 @@ public class MainDashboardUI implements Initializable {
         }
     }
 
-    // ── Navigation ───────────────────────────────────────────────
-    @FXML private void onSanPham()      { navigate("/fxml/bidding/ProductListPanel.fxml", "Sản phẩm"); }
-    @FXML private void onAutoBid()      { navigate("/fxml/bidding/AutoBidPanel.fxml", "Đấu giá tự động"); }
+    @FXML private void onSanPham() { navigate("/fxml/bidding/ProductListPanel.fxml", "Sản phẩm"); }
+    @FXML private void onAutoBid() { navigate("/fxml/bidding/AutoBidPanel.fxml", "Đấu giá tự động"); }
     @FXML private void onLichSu() {
         AuctionClient client = SessionManager.getClient();
         User user = SessionManager.getCurrentUser();
         if (client == null || user == null) {
-            info("Chưa kết nối server. Vui lòng đăng nhập lại.");
+            showAlert("Chưa kết nối server. Vui lòng đăng nhập lại.");
             return;
         }
         new MyBidsHistoryUI().show(client, user);
@@ -582,7 +584,7 @@ public class MainDashboardUI implements Initializable {
         try {
             URL res = getClass().getResource(fxmlPath);
             if (res == null) {
-                info("Màn hình \"" + title + "\" đang được phát triển.");
+                showAlert("Màn hình \"" + title + "\" đang được phát triển.");
                 return;
             }
             FXMLLoader loader = new FXMLLoader(res);
@@ -594,12 +596,12 @@ public class MainDashboardUI implements Initializable {
             stage.setScene(scene);
             stage.setTitle(title + " – Hệ thống đấu giá");
         } catch (Exception e) {
-            info("Lỗi mở màn hình: " + e.getMessage());
+            showAlert("Lỗi mở màn hình: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void info(String msg) {
+    private void showAlert(String msg) {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
         a.setTitle("Thông báo");
         a.setHeaderText(null);
@@ -607,7 +609,6 @@ public class MainDashboardUI implements Initializable {
         a.showAndWait();
     }
 
-    // ========== SHOW METHOD ==========
     public static void show(Stage stage, String username) {
         try {
             setCurrentUser(username);
