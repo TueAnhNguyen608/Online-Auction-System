@@ -19,7 +19,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -34,12 +38,21 @@ public class BiddingService {
     private final DatabaseConnectionPool dbPool;
     private final ConcurrentHashMap<String, ReentrantLock> itemLocks = new ConcurrentHashMap<>();
 
+    // 🔥 THÊM: Scheduled cleanup cho itemLocks
+    private final ScheduledExecutorService lockCleanupExecutor;
+    private static final long LOCK_CLEANUP_INTERVAL_MINUTES = 30;
+    private static final long LOCK_IDLE_TIMEOUT_MINUTES = 60;
+
     private BiddingService() {
         this.itemRepo = ItemRepository.getInstance();
         this.bidRepo = BidRepository.getInstance();
         this.autoBidRepo = AutoBidRepository.getInstance();
         this.broadcaster = EventBroadcaster.getInstance();
         this.dbPool = DatabaseConnectionPool.getInstance();
+
+        // 🔥 THÊM: Khởi tạo scheduler cleanup lock
+        this.lockCleanupExecutor = Executors.newSingleThreadScheduledExecutor();
+        startLockCleanup();
     }
 
     public static BiddingService getInstance() {
@@ -53,6 +66,57 @@ public class BiddingService {
         return instance;
     }
 
+    // 🔥 THÊM: Cleanup lock cũ không còn dùng
+    private void startLockCleanup() {
+        lockCleanupExecutor.scheduleAtFixedRate(() -> {
+            try {
+                int cleanedCount = 0;
+                for (Map.Entry<String, ReentrantLock> entry : itemLocks.entrySet()) {
+                    ReentrantLock lock = entry.getValue();
+                    // Chỉ cleanup lock không bị giữ và không có thread đang chờ
+                    if (!lock.isLocked() && !lock.hasQueuedThreads()) {
+                        // Kiểm tra item có còn active không
+                        try {
+                            Optional<Item> item = itemRepo.findById(entry.getKey());
+                            if (item.isEmpty() || item.get().getStatus() == ItemStatus.ENDED) {
+                                itemLocks.remove(entry.getKey(), lock);
+                                cleanedCount++;
+                            }
+                        } catch (SQLException e) {
+                            System.err.println("Error checking item for lock cleanup: " + e.getMessage());
+                        }
+                    }
+                }
+                if (cleanedCount > 0) {
+                    System.out.println("🧹 Cleaned up " + cleanedCount + " idle locks. Remaining: " +
+                            itemLocks.size());
+                }
+            } catch (Exception e) {
+                System.err.println("Error in lock cleanup: " + e.getMessage());
+            }
+        }, LOCK_CLEANUP_INTERVAL_MINUTES, LOCK_CLEANUP_INTERVAL_MINUTES, TimeUnit.MINUTES);
+    }
+
+    // 🔥 THÊM: Phương thức lấy lock với timeout để tránh deadlock
+    private boolean tryLockWithTimeout(ReentrantLock lock, String itemId, long timeoutMillis)
+            throws InterruptedException {
+        if (lock.tryLock(timeoutMillis, TimeUnit.MILLISECONDS)) {
+            return true;
+        }
+        System.err.println("⚠️ Timeout acquiring lock for item: " + itemId);
+        return false;
+    }
+
+    // 🔥 THÊM: Helper method tính step price
+    private double calculateStepPrice(double currentPrice) {
+        double stepPrice = currentPrice * AuctionConstants.DEFAULT_STEP_PERCENT;
+        if (stepPrice < AuctionConstants.MINIMUM_BID_AMOUNT) {
+            stepPrice = AuctionConstants.MINIMUM_BID_AMOUNT;
+        }
+        return stepPrice;
+    }
+
+    // 🔥 SỬA: placeBid với timeout và better error handling
     public BidResult placeBid(Bid bid) throws Exception {
         // Validation cơ bản
         if (bid.getAmount() > MAX_BID_AMOUNT) {
@@ -63,20 +127,25 @@ public class BiddingService {
             throw new InvalidBidException("Giá đặt phải lớn hơn 0");
         }
 
-        // Log request nhận được
         System.out.println("💰 [placeBid] Received: itemId=" + bid.getItemId() +
                 ", amount=" + bid.getAmount() +
                 ", bidderId=" + bid.getBidderId() +
                 ", bidderName=" + bid.getBidderName());
 
-        ReentrantLock lock = itemLocks.computeIfAbsent(bid.getItemId(), k -> new ReentrantLock());
-        lock.lock();
+        ReentrantLock lock = itemLocks.computeIfAbsent(bid.getItemId(),
+                k -> new ReentrantLock(true)); // 🔥 THÊM: fair lock
+
+        // 🔥 SỬA: Lock với timeout 10 giây
+        if (!tryLockWithTimeout(lock, bid.getItemId(), 10000)) {
+            throw new Exception("Hệ thống đang bận, vui lòng thử lại sau");
+        }
 
         Connection conn = null;
 
         try {
             conn = dbPool.getConnection();
             conn.setAutoCommit(false);
+            conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
             // Lấy item với FOR UPDATE (lock row)
             Optional<Item> itemOpt = itemRepo.findByIdForUpdate(bid.getItemId(), conn);
@@ -96,19 +165,17 @@ public class BiddingService {
 
             if (item.getEndTime().isBefore(LocalDateTime.now())) {
                 itemRepo.updateStatus(bid.getItemId(), ItemStatus.ENDED, conn);
+                conn.commit();
                 throw new AuctionClosedException("Thời gian đấu giá đã kết thúc", bid.getItemId());
             }
 
+            // 🔥 ĐÃ CÓ: Check current winner không thể tự outbid
             if (bid.getBidderId().equals(item.getCurrentBidderId()) && item.getCurrentBidderId() != null) {
                 System.err.println("❌ [placeBid] Same bidder: " + bid.getBidderId());
                 throw new InvalidBidException("Bạn đang là người trả giá cao nhất, không thể tự ra giá cao hơn");
             }
 
-            double stepPrice = item.getCurrentPrice() * AuctionConstants.DEFAULT_STEP_PERCENT;
-            if (stepPrice < AuctionConstants.MINIMUM_BID_AMOUNT) {
-                stepPrice = AuctionConstants.MINIMUM_BID_AMOUNT;
-            }
-
+            double stepPrice = calculateStepPrice(item.getCurrentPrice());
             double minBid = item.getCurrentPrice() + stepPrice;
             System.out.println("📊 [placeBid] CurrentPrice=" + item.getCurrentPrice() +
                     ", stepPrice=" + stepPrice +
@@ -124,6 +191,7 @@ public class BiddingService {
             long secondsLeft = item.getSecondsRemaining();
             boolean extended = false;
 
+            // Anti-sniping
             if (secondsLeft <= AuctionConstants.SNIPING_WINDOW_SECONDS && secondsLeft > 0) {
                 itemRepo.extendEndTime(bid.getItemId(), AuctionConstants.EXTENSION_SECONDS, conn);
                 extended = true;
@@ -139,22 +207,28 @@ public class BiddingService {
                     bid.getBidderId(), bid.getBidderName(), conn);
 
             conn.commit();
-            conn.setAutoCommit(true);
 
             // Broadcast sau khi commit
             item = itemRepo.findById(bid.getItemId()).orElse(item);
             long newRemaining = Math.max(0, item.getSecondsRemaining());
             PriceUpdateEvent event = new PriceUpdateEvent(
                     item.getId(), item.getName(), bid.getAmount(),
-                    bid.getBidderName(), newRemaining, item.getBidCount()
+                    bid.getBidderName(), newRemaining, item.getBidCount() + 1
             );
             broadcaster.broadcastToItem(bid.getItemId(), event);
 
             System.out.println("✅ Đặt giá thành công: " + bid.getBidderName() +
                     " - " + String.format("%,.0f", bid.getAmount()) + " VND");
 
-            // Trigger auto-bids
-            triggerAutoBids(bid.getItemId());
+            // 🔥 SỬA: Trigger auto-bids trong thread riêng để không block response
+            final String finalItemId = bid.getItemId();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    triggerAutoBids(finalItemId);
+                } catch (Exception e) {
+                    System.err.println("Auto-bid trigger error: " + e.getMessage());
+                }
+            });
 
             return new BidResult(bid, extended);
 
@@ -174,12 +248,18 @@ public class BiddingService {
             throw e;
         } finally {
             if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    System.err.println("Error resetting auto-commit: " + e.getMessage());
+                }
                 dbPool.returnConnection(conn);
             }
             lock.unlock();
         }
     }
 
+    // 🔥 SỬA: triggerAutoBids với vòng lặp có giới hạn (đã có maxIterations)
     private void triggerAutoBids(String itemId) {
         int maxIterations = 50;
         int iteration = 0;
@@ -189,6 +269,7 @@ public class BiddingService {
             try {
                 conn = dbPool.getConnection();
                 conn.setAutoCommit(false);
+                conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
                 Optional<Item> itemOpt = itemRepo.findByIdForUpdate(itemId, conn);
                 if (itemOpt.isEmpty()) {
@@ -220,10 +301,7 @@ public class BiddingService {
                 String currentWinnerId = item.getCurrentBidderId();
                 double currentPrice = item.getCurrentPrice();
 
-                double stepPrice = currentPrice * AuctionConstants.DEFAULT_STEP_PERCENT;
-                if (stepPrice < AuctionConstants.MINIMUM_BID_AMOUNT) {
-                    stepPrice = AuctionConstants.MINIMUM_BID_AMOUNT;
-                }
+                double stepPrice = calculateStepPrice(currentPrice);
 
                 Map<String, Object> bestAutoBid = null;
                 double bestMaxAmount = 0;
@@ -370,5 +448,20 @@ public class BiddingService {
     public double getTotalSpent(String userId) throws SQLException {
         List<Item> wonItems = getWonProducts(userId);
         return wonItems.stream().mapToDouble(Item::getCurrentPrice).sum();
+    }
+
+    // 🔥 THÊM: Shutdown method để cleanup resources
+    public void shutdown() {
+        if (lockCleanupExecutor != null) {
+            lockCleanupExecutor.shutdown();
+            try {
+                lockCleanupExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                lockCleanupExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        itemLocks.clear();
+        System.out.println("✅ BiddingService shutdown complete. Locks cleared: " + itemLocks.size());
     }
 }

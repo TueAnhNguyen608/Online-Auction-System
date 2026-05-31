@@ -27,7 +27,8 @@ public class ItemRepository {
         return instance;
     }
 
-    // 🔥 THÊM: findById với FOR UPDATE (cho transaction)
+    // ========== PHƯƠNG THỨC VỚI CONNECTION (CHO TRANSACTION) ==========
+
     public Optional<Item> findByIdForUpdate(String id, Connection conn) throws SQLException {
         String sql = "SELECT * FROM items WHERE id = ? FOR UPDATE";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -40,7 +41,6 @@ public class ItemRepository {
         }
     }
 
-    // 🔥 THÊM: Phương thức nhận connection
     public Optional<Item> findById(String id, Connection conn) throws SQLException {
         String sql = "SELECT * FROM items WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -53,20 +53,6 @@ public class ItemRepository {
         }
     }
 
-    public Optional<Item> findById(String id) throws SQLException {
-        String sql = "SELECT * FROM items WHERE id = ?";
-        try (Connection conn = pool.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return Optional.of(mapRow(rs));
-            }
-            return Optional.empty();
-        }
-    }
-
-    // 🔥 SỬA: updateCurrentPrice nhận connection
     public boolean updateCurrentPrice(String itemId, double newPrice,
                                       String bidderId, String bidderName,
                                       Connection conn) throws SQLException {
@@ -81,7 +67,6 @@ public class ItemRepository {
         }
     }
 
-    // 🔥 SỬA: updateStatus nhận connection
     public boolean updateStatus(String itemId, ItemStatus status, Connection conn) throws SQLException {
         String sql = "UPDATE items SET status = ? WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -91,7 +76,6 @@ public class ItemRepository {
         }
     }
 
-    // 🔥 SỬA: extendEndTime nhận connection
     public boolean extendEndTime(String itemId, int seconds, Connection conn) throws SQLException {
         String sql = "UPDATE items SET end_time = DATE_ADD(end_time, INTERVAL ? SECOND) WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -101,7 +85,50 @@ public class ItemRepository {
         }
     }
 
-    // Các phương thức cũ giữ nguyên
+    // 🔥 THÊM MỚI: Phân trang cho AuctionScheduler
+    public List<Item> findActiveItemsWithPagination(Connection conn, int limit, int offset)
+            throws SQLException {
+        List<Item> items = new ArrayList<>();
+        String sql = "SELECT * FROM items WHERE status = 'ACTIVE' AND end_time > NOW() " +
+                "ORDER BY end_time ASC LIMIT ? OFFSET ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            stmt.setInt(2, offset);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                items.add(mapRow(rs));
+            }
+        }
+        return items;
+    }
+
+    // 🔥 THÊM MỚI: Đếm số lượng active items
+    public int countActiveWithConnection(Connection conn) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM items WHERE status = 'ACTIVE' AND end_time > NOW()";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        }
+    }
+
+    // ========== PHƯƠNG THỨC KHÔNG CÓ CONNECTION (DÙNG POOL) ==========
+
+    public Optional<Item> findById(String id) throws SQLException {
+        String sql = "SELECT * FROM items WHERE id = ?";
+        try (Connection conn = pool.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(mapRow(rs));
+            }
+            return Optional.empty();
+        }
+    }
+
     public List<Item> findAll() throws SQLException {
         List<Item> items = new ArrayList<>();
         String sql = "SELECT * FROM items ORDER BY created_at DESC";

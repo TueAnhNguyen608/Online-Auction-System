@@ -6,38 +6,66 @@ import com.auction.common.model.user.User;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class SessionManager {
-    private static User currentUser;
-    private static AuctionClient client;
-    private static final List<User> savedAccounts = new ArrayList<>();
-    private static int unreadNotifCount = 0;
+
+    // 🔥 SỬA: Dùng volatile + ReadWriteLock cho thread safety
+    private static volatile User currentUser;
+    private static volatile AuctionClient client;
+    private static final List<User> savedAccounts = new CopyOnWriteArrayList<>(); // 🔥 Thread-safe
+    private static volatile int unreadNotifCount = 0;
+
+    // 🔥 THÊM: Lock cho operations
+    private static final ReentrantReadWriteLock cacheLock = new ReentrantReadWriteLock();
+    private static final ReentrantReadWriteLock userLock = new ReentrantReadWriteLock();
 
     // ========== CACHE CHO PRODUCT LIST ==========
-    private static List<Item> cachedItems = null;
-    private static long lastFetchTime = 0;
-    private static final long CACHE_DURATION_MS = 60000; // 1 phút
+    private static volatile List<Item> cachedItems = null;
+    private static volatile long lastFetchTime = 0;
+    private static final long CACHE_DURATION_MS = 60000;
 
+    // 🔥 SỬA: Thread-safe get cached items
     public static List<Item> getCachedItems() {
-        long now = System.currentTimeMillis();
-        if (cachedItems == null || (now - lastFetchTime) > CACHE_DURATION_MS) {
-            return null;
+        cacheLock.readLock().lock();
+        try {
+            long now = System.currentTimeMillis();
+            if (cachedItems == null || (now - lastFetchTime) > CACHE_DURATION_MS) {
+                return null;
+            }
+            // Return a copy to prevent modification
+            return cachedItems != null ? new ArrayList<>(cachedItems) : null;
+        } finally {
+            cacheLock.readLock().unlock();
         }
-        return cachedItems;
     }
 
+    // 🔥 SỬA: Thread-safe set cached items
     public static void setCachedItems(List<Item> items) {
-        cachedItems = items;
-        lastFetchTime = System.currentTimeMillis();
+        cacheLock.writeLock().lock();
+        try {
+            cachedItems = items != null ? new ArrayList<>(items) : null;
+            lastFetchTime = System.currentTimeMillis();
+        } finally {
+            cacheLock.writeLock().unlock();
+        }
     }
 
     public static void clearCache() {
-        cachedItems = null;
-        lastFetchTime = 0;
+        cacheLock.writeLock().lock();
+        try {
+            cachedItems = null;
+            lastFetchTime = 0;
+        } finally {
+            cacheLock.writeLock().unlock();
+        }
     }
 
     // ========== AUTO-BID CACHE ==========
-    private static final java.util.Map<String, java.util.List<AutoBidCache>> autoBidCache = new java.util.HashMap<>();
+    private static final Map<String, List<AutoBidCache>> autoBidCache = new ConcurrentHashMap<>();
 
     public static class AutoBidCache {
         public final String itemId, itemName, maxPrice, currentPrice;
@@ -49,24 +77,34 @@ public class SessionManager {
         }
     }
 
+    // 🔥 SỬA: Thread-safe auto-bid cache operations
     public static void addAutoBidCache(String username, String itemId, String itemName,
                                        String maxPrice, String currentPrice) {
-        autoBidCache.computeIfAbsent(username, k -> new java.util.ArrayList<>())
+        if (username == null) return;
+        autoBidCache.computeIfAbsent(username, k -> new CopyOnWriteArrayList<>())
                 .removeIf(a -> a.itemId.equals(itemId));
         autoBidCache.get(username).add(new AutoBidCache(itemId, itemName, maxPrice, currentPrice));
     }
 
     public static void removeAutoBidCache(String username, String itemId) {
-        java.util.List<AutoBidCache> list = autoBidCache.get(username);
-        if (list != null) list.removeIf(a -> a.itemId.equals(itemId));
+        if (username == null) return;
+        List<AutoBidCache> list = autoBidCache.get(username);
+        if (list != null) {
+            list.removeIf(a -> a.itemId.equals(itemId));
+            if (list.isEmpty()) {
+                autoBidCache.remove(username);
+            }
+        }
     }
 
-    public static java.util.List<AutoBidCache> getAutoBidCache(String username) {
-        return autoBidCache.getOrDefault(username, new java.util.ArrayList<>());
+    public static List<AutoBidCache> getAutoBidCache(String username) {
+        if (username == null) return new ArrayList<>();
+        List<AutoBidCache> list = autoBidCache.get(username);
+        return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
     // ========== AUTO-BID HISTORY ==========
-    private static final java.util.Map<String, java.util.List<AutoBidHistoryEntry>> autoBidHistoryMap = new java.util.HashMap<>();
+    private static final Map<String, List<AutoBidHistoryEntry>> autoBidHistoryMap = new ConcurrentHashMap<>();
 
     public static class AutoBidHistoryEntry {
         public String itemId, itemName, bidAmount, currentPrice, bidTime, status;
@@ -82,19 +120,23 @@ public class SessionManager {
     }
 
     public static void addAutoBidHistory(String username, AutoBidHistoryEntry entry) {
-        autoBidHistoryMap.computeIfAbsent(username, k -> new java.util.ArrayList<>()).add(0, entry);
+        if (username == null || entry == null) return;
+        autoBidHistoryMap.computeIfAbsent(username, k -> new CopyOnWriteArrayList<>())
+                .add(0, entry);
     }
 
-    // 🔥 THÊM METHOD NÀY ĐỂ SỬA LỖI TRONG AutoBidPanel.java
     public static void removeAutoBidHistory(String username, String itemId) {
-        java.util.List<AutoBidHistoryEntry> list = autoBidHistoryMap.get(username);
+        if (username == null) return;
+        List<AutoBidHistoryEntry> list = autoBidHistoryMap.get(username);
         if (list != null) {
             list.removeIf(entry -> itemId.equals(entry.itemId));
         }
     }
 
-    public static java.util.List<AutoBidHistoryEntry> getAutoBidHistory(String username) {
-        return autoBidHistoryMap.getOrDefault(username, new java.util.ArrayList<>());
+    public static List<AutoBidHistoryEntry> getAutoBidHistory(String username) {
+        if (username == null) return new ArrayList<>();
+        List<AutoBidHistoryEntry> list = autoBidHistoryMap.get(username);
+        return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
     // ========== NOTIFICATIONS ==========
@@ -110,7 +152,8 @@ public class SessionManager {
         }
     }
 
-    private static final List<NotifData> realtimeNotifs = new ArrayList<>();
+    // 🔥 SỬA: Dùng CopyOnWriteArrayList cho thread-safe
+    private static final List<NotifData> realtimeNotifs = new CopyOnWriteArrayList<>();
 
     public static void addRealtimeNotif(String type, String title, String message) {
         String time = java.time.LocalDateTime.now()
@@ -119,14 +162,45 @@ public class SessionManager {
         incrementUnreadNotif();
     }
 
-    public static List<NotifData> getRealtimeNotifs() { return realtimeNotifs; }
-    public static void clearRealtimeNotifs() { realtimeNotifs.clear(); }
+    public static List<NotifData> getRealtimeNotifs() {
+        return new ArrayList<>(realtimeNotifs);
+    }
 
-    // ========== USER MANAGEMENT ==========
-    public static void setCurrentUser(User user) { currentUser = user; }
+    public static void clearRealtimeNotifs() {
+        realtimeNotifs.clear();
+    }
 
+    // ========== USER MANAGEMENT - THREAD SAFE ==========
+    public static void setCurrentUser(User user) {
+        userLock.writeLock().lock();
+        try {
+            currentUser = user;
+        } finally {
+            userLock.writeLock().unlock();
+        }
+    }
+
+    public static User getCurrentUser() {
+        userLock.readLock().lock();
+        try {
+            return currentUser;
+        } finally {
+            userLock.readLock().unlock();
+        }
+    }
+
+    public static void setClient(AuctionClient c) {
+        client = c;
+    }
+
+    public static AuctionClient getClient() {
+        return client;
+    }
+
+    // 🔥 SỬA: Thread-safe save account
     public static void saveAccount(User user) {
         if (user == null) return;
+
         boolean exists = false;
         for (User u : savedAccounts) {
             if (u.getUsername().equals(user.getUsername())) {
@@ -135,14 +209,20 @@ public class SessionManager {
                 break;
             }
         }
-        if (!exists) savedAccounts.add(user);
+        if (!exists) {
+            savedAccounts.add(user);
+        }
     }
 
     public static void clearPassword(String username) {
-        savedAccounts.stream()
-                .filter(u -> u.getUsername().equals(username))
-                .findFirst()
-                .ifPresent(u -> u.setPassword(null));
+        for (User u : savedAccounts) {
+            if (u.getUsername().equals(username)) {
+                u.setPassword(null);
+                break;
+            }
+        }
+
+        // Kiểm tra nếu chưa có trong savedAccounts
         boolean exists = savedAccounts.stream()
                 .anyMatch(u -> u.getUsername().equals(username));
         if (!exists && currentUser != null && currentUser.getUsername().equals(username)) {
@@ -153,19 +233,42 @@ public class SessionManager {
         }
     }
 
-    public static User getCurrentUser() { return currentUser; }
-    public static void setClient(AuctionClient c) { client = c; }
-    public static AuctionClient getClient() { return client; }
-    public static List<User> getSavedAccounts() { return savedAccounts; }
+    public static List<User> getSavedAccounts() {
+        return new ArrayList<>(savedAccounts);
+    }
 
-    public static void setUnreadNotifCount(int count) { unreadNotifCount = count; }
-    public static int getUnreadNotifCount() { return unreadNotifCount; }
-    public static void clearUnreadNotif() { unreadNotifCount = 0; }
-    public static void incrementUnreadNotif() { unreadNotifCount++; }
+    // 🔥 SỬA: Thread-safe notification count
+    public static void setUnreadNotifCount(int count) {
+        unreadNotifCount = Math.max(0, count);
+    }
 
+    public static int getUnreadNotifCount() {
+        return unreadNotifCount;
+    }
+
+    public static void clearUnreadNotif() {
+        unreadNotifCount = 0;
+    }
+
+    public static void incrementUnreadNotif() {
+        unreadNotifCount++;
+    }
+
+    // 🔥 SỬA: Thread-safe logout
     public static void logout() {
-        try { if (client != null) client.disconnect(); } catch (Exception ignored) {}
-        currentUser = null;
+        try {
+            if (client != null) {
+                client.disconnect();
+            }
+        } catch (Exception ignored) {}
+
+        userLock.writeLock().lock();
+        try {
+            currentUser = null;
+        } finally {
+            userLock.writeLock().unlock();
+        }
+
         client = null;
         unreadNotifCount = 0;
         realtimeNotifs.clear();
