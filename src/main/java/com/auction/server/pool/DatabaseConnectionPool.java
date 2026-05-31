@@ -19,7 +19,6 @@ public class DatabaseConnectionPool {
     private final int poolSize;
     private boolean isInitialized = false;
 
-    // 🔥 THÊM: Connection leak tracking
     private final AtomicInteger activeConnections = new AtomicInteger(0);
     private final AtomicInteger totalConnections = new AtomicInteger(0);
 
@@ -40,8 +39,6 @@ public class DatabaseConnectionPool {
         }
 
         initializePool();
-
-        // 🔥 THÊM: Leak detector thread
         startLeakDetector();
     }
 
@@ -62,6 +59,7 @@ public class DatabaseConnectionPool {
             try {
                 Connection conn = DriverManager.getConnection(url, username, password);
                 if (conn != null) {
+                    conn.setAutoCommit(true);
                     connectionPool.offer(conn);
                     successCount++;
                     totalConnections.incrementAndGet();
@@ -79,15 +77,16 @@ public class DatabaseConnectionPool {
         }
     }
 
-    // 🔥 THÊM: Leak detector
     private void startLeakDetector() {
         Thread leakDetector = new Thread(() -> {
             while (true) {
                 try {
-                    Thread.sleep(60000); // Kiểm tra mỗi phút
+                    Thread.sleep(30000);
                     int active = activeConnections.get();
-                    if (active > 0) {
-                        System.out.println("⚠️ " + active + " active database connections (may be leaked)");
+                    if (active > poolSize) {
+                        System.err.println("⚠️ WARNING: " + active + " active connections (pool size: " + poolSize + ")");
+                    } else if (active > 0) {
+                        System.out.println("📊 Active connections: " + active + "/" + poolSize);
                     }
                 } catch (InterruptedException e) {
                     break;
@@ -108,8 +107,9 @@ public class DatabaseConnectionPool {
             if (conn == null || conn.isClosed()) {
                 conn = DriverManager.getConnection(url, username, password);
                 totalConnections.incrementAndGet();
-                System.out.println("⚠️ Created new connection (pool exhausted)");
+                System.err.println("⚠️ Pool exhausted! Created new connection (total: " + totalConnections.get() + ")");
             }
+            conn.setAutoCommit(true);
             activeConnections.incrementAndGet();
             return conn;
         } catch (InterruptedException e) {
@@ -119,27 +119,46 @@ public class DatabaseConnectionPool {
     }
 
     public void returnConnection(Connection conn) {
-        if (conn != null) {
-            activeConnections.decrementAndGet();
-            try {
-                if (!conn.isClosed()) {
-                    conn.setAutoCommit(true);
-                    conn.rollback();
-                    if (connectionPool.size() < poolSize) {
-                        connectionPool.offer(conn);
-                    } else {
-                        conn.close();
-                        totalConnections.decrementAndGet();
-                    }
-                }
-            } catch (SQLException e) {
-                System.err.println("Error returning connection: " + e.getMessage());
+        if (conn == null) return;
+
+        try {
+            if (conn.isClosed()) {
+                activeConnections.decrementAndGet();
+                return;
+            }
+
+            // Rollback nếu đang trong transaction
+            if (!conn.getAutoCommit()) {
                 try {
-                    conn.close();
-                    totalConnections.decrementAndGet();
-                } catch (SQLException ex) {
+                    conn.rollback();
+                } catch (SQLException e) {
                     // Ignore
                 }
+                conn.setAutoCommit(true);
+            }
+
+            // Trả connection về pool
+            if (connectionPool.size() < poolSize) {
+                if (connectionPool.offer(conn)) {
+                    activeConnections.decrementAndGet();
+                } else {
+                    conn.close();
+                    activeConnections.decrementAndGet();
+                    totalConnections.decrementAndGet();
+                }
+            } else {
+                conn.close();
+                activeConnections.decrementAndGet();
+                totalConnections.decrementAndGet();
+            }
+        } catch (SQLException e) {
+            System.err.println("Error returning connection: " + e.getMessage());
+            activeConnections.decrementAndGet();
+            try {
+                conn.close();
+                totalConnections.decrementAndGet();
+            } catch (SQLException ex) {
+                // Ignore
             }
         }
     }
@@ -167,7 +186,9 @@ public class DatabaseConnectionPool {
 
     public boolean testConnection() {
         try (Connection conn = getConnection()) {
-            return conn != null && !conn.isClosed() && conn.isValid(3);
+            boolean valid = conn != null && !conn.isClosed() && conn.isValid(2);
+            if (conn != null) returnConnection(conn);
+            return valid;
         } catch (SQLException e) {
             System.err.println("❌ Database connection test failed: " + e.getMessage());
             return false;

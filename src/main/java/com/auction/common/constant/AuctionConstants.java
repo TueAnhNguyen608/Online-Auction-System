@@ -32,7 +32,7 @@ public final class AuctionConstants {
 
     // 🔥 THÊM: Validation cho bid
     public static final double MAX_BID_AMOUNT = 1_000_000_000_000L;  // 1 nghìn tỷ
-    public static final double MIN_BID_AMOUNT = 1000;
+    // MIN_BID_AMOUNT đã có ở trên
 
     // ========== ITEM STATUS ==========
     public static final String ITEM_STATUS_PENDING = "PENDING";
@@ -49,7 +49,9 @@ public final class AuctionConstants {
     public static final String DB_URL = "jdbc:mysql://localhost:3306/auction_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&useUnicode=true&characterEncoding=utf8";
     public static final String DB_USER = "root";
     public static final String DB_PASSWORD = "Nhom7123456";
-    public static final int DB_POOL_SIZE = 10;
+
+    // 🔥 ĐÃ SỬA: Tăng pool size từ 10 lên 50 để tránh connection leak
+    public static final int DB_POOL_SIZE = 50;
     public static final int DB_MIN_POOL_SIZE = 5;
 
     // ========== SCHEDULER ==========

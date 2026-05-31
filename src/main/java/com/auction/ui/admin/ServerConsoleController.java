@@ -1,6 +1,9 @@
 package com.auction.ui.admin;
 
 import com.auction.server.AuctionServer;
+import com.auction.server.pool.DatabaseConnectionPool;
+import com.auction.server.repository.BidRepository;
+import com.auction.server.repository.ItemRepository;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -11,10 +14,12 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ServerConsoleController {
 
@@ -35,6 +40,7 @@ public class ServerConsoleController {
 
     private final ObservableList<String> clientList = FXCollections.observableArrayList();
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private long serverStartTime = 0;
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter LOG_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -42,15 +48,45 @@ public class ServerConsoleController {
     private enum ServerState { OFFLINE, STARTING, ONLINE, STOPPING }
     private ServerState serverState = ServerState.OFFLINE;
 
+    private ItemRepository itemRepo;
+    private BidRepository bidRepo;
+
     @FXML
     public void initialize() {
         lvClients.setItems(clientList);
         lblPort.setText("9999");
+
+        // Khởi tạo repositories
+        try {
+            itemRepo = ItemRepository.getInstance();
+            bidRepo = BidRepository.getInstance();
+
+            // Kiểm tra database connection
+            if (DatabaseConnectionPool.getInstance().testConnection()) {
+                addLog("✅ Connected to database");
+            } else {
+                addLog("❌ Cannot connect to database");
+            }
+        } catch (Exception e) {
+            addLog("❌ Database error: " + e.getMessage());
+        }
+
         applyState(ServerState.OFFLINE);
         addLog("🟢 Server Console initialized");
-        refreshStats();
+
+        // Kiểm tra server đã chạy chưa
+        if (AuctionServer.isRunning()) {
+            serverStartTime = System.currentTimeMillis();
+            applyState(ServerState.ONLINE);
+            addLog("✅ Server is already ONLINE");
+            refreshStats();
+            refreshClientList();
+        } else {
+            refreshStats();
+        }
+
         startRealtimeClock();
-        addSampleClients();
+        startStatsUpdater();
     }
 
     @FXML
@@ -66,11 +102,13 @@ public class ServerConsoleController {
         new Thread(() -> {
             try {
                 AuctionServer.start();
+                serverStartTime = System.currentTimeMillis();
                 Platform.runLater(() -> {
                     if (AuctionServer.isRunning()) {
                         applyState(ServerState.ONLINE);
                         addLog("✅ Server is ONLINE");
-                        addSampleClients();
+                        refreshStats();
+                        refreshClientList();
                     } else {
                         applyState(ServerState.OFFLINE);
                         addLog("❌ Server failed to start");
@@ -82,17 +120,6 @@ public class ServerConsoleController {
                     applyState(ServerState.OFFLINE);
                 });
             }
-        }).start();
-
-        new Thread(() -> {
-            try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
-            Platform.runLater(() -> {
-                if (serverState == ServerState.STARTING) {
-                    applyState(ServerState.ONLINE);
-                    addLog("✅ Server is ONLINE (auto-detected)");
-                    addSampleClients();
-                }
-            });
         }).start();
     }
 
@@ -113,7 +140,9 @@ public class ServerConsoleController {
                     clientList.clear();
                     updateClientCount();
                     applyState(ServerState.OFFLINE);
+                    serverStartTime = 0;
                     addLog("✅ Server stopped");
+                    refreshStats();
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
@@ -126,8 +155,8 @@ public class ServerConsoleController {
 
     @FXML
     private void handleRestart() {
-        if (serverState != ServerState.ONLINE) {
-            addLog("⚠️ Server is not ONLINE (current: " + serverState + ")");
+        if (serverState != ServerState.ONLINE && serverState != ServerState.OFFLINE) {
+            addLog("⚠️ Cannot restart while " + serverState);
             return;
         }
 
@@ -135,8 +164,10 @@ public class ServerConsoleController {
 
         new Thread(() -> {
             try {
-                AuctionServer.stop();
-                Thread.sleep(2000);
+                if (AuctionServer.isRunning()) {
+                    AuctionServer.stop();
+                    Thread.sleep(2000);
+                }
             } catch (Exception e) {
                 addLog("Stop error: " + e.getMessage());
             }
@@ -149,13 +180,15 @@ public class ServerConsoleController {
 
                 try {
                     AuctionServer.start();
+                    serverStartTime = System.currentTimeMillis();
                     new Thread(() -> {
                         try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
                         Platform.runLater(() -> {
                             if (AuctionServer.isRunning()) {
                                 applyState(ServerState.ONLINE);
                                 addLog("✅ Server restarted successfully");
-                                addSampleClients();
+                                refreshStats();
+                                refreshClientList();
                             } else {
                                 applyState(ServerState.OFFLINE);
                                 addLog("❌ Server failed to restart");
@@ -242,9 +275,69 @@ public class ServerConsoleController {
     }
 
     private void refreshStats() {
-        lblThreadCount.setText(String.valueOf(Thread.activeCount()));
-        lblTotalBids.setText("0");
-        lblActiveItems.setText("0");
+        new Thread(() -> {
+            try {
+                int activeItems = 0;
+                int totalBids = 0;
+
+                if (itemRepo != null) {
+                    activeItems = itemRepo.countActive();
+                    totalBids = bidRepo.countAll();
+                }
+
+                final int finalActiveItems = activeItems;
+                final int finalTotalBids = totalBids;
+
+                Platform.runLater(() -> {
+                    lblActiveItems.setText(String.valueOf(finalActiveItems));
+                    lblTotalBids.setText(String.valueOf(finalTotalBids));
+                    lblThreadCount.setText(String.valueOf(Thread.activeCount()));
+
+                    // Màu sắc theo số lượng
+                    if (finalActiveItems == 0) {
+                        lblActiveItems.setStyle("-fx-text-fill: #f59e0b;");
+                    } else {
+                        lblActiveItems.setStyle("-fx-text-fill: #22c55e;");
+                    }
+
+                    if (finalTotalBids == 0) {
+                        lblTotalBids.setStyle("-fx-text-fill: #f59e0b;");
+                    } else {
+                        lblTotalBids.setStyle("-fx-text-fill: #22c55e;");
+                    }
+                });
+            } catch (SQLException e) {
+                Platform.runLater(() -> {
+                    lblActiveItems.setText("?");
+                    lblTotalBids.setText("?");
+                    addLog("⚠️ Cannot get stats from database: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    private void refreshClientList() {
+        // TODO: Lấy danh sách client thật từ ServerSocketManager
+        // Hiện tại dùng mẫu - có thể thay bằng dữ liệu thật sau
+        Platform.runLater(() -> {
+            clientList.clear();
+            clientList.add("🔵 bidder1 (sub: 3) - 192.168.1.10");
+            clientList.add("🔵 bidder2 (sub: 2) - 192.168.1.11");
+            clientList.add("🔵 bidder3 (sub: 5) - 192.168.1.12");
+            clientList.add("🔵 bidder4 (sub: 1) - 192.168.1.13");
+            clientList.add("🔵 bidder5 (sub: 4) - 192.168.1.14");
+            clientList.add("🔵 bidder6 (sub: 2) - 192.168.1.15");
+            clientList.add("🔵 bidder7 (sub: 3) - 192.168.1.16");
+            clientList.add("🟣 admin (sub: 0) - 192.168.1.5");
+            updateClientCount();
+            updateSubscriptionsCount();
+        });
+    }
+
+    private void startStatsUpdater() {
+        scheduler.scheduleAtFixedRate(() -> {
+            refreshStats();
+        }, 5, 10, TimeUnit.SECONDS);
     }
 
     private void updateClientCount() {
@@ -283,22 +376,6 @@ public class ServerConsoleController {
             String timestamp = LocalDateTime.now().format(LOG_TIME_FORMAT);
             taLogs.appendText("[" + timestamp + "] " + message + "\n");
             taLogs.setScrollTop(Double.MAX_VALUE);
-        });
-    }
-
-    private void addSampleClients() {
-        Platform.runLater(() -> {
-            clientList.clear();
-            clientList.add("🔵 bidder1 (sub: 3) - 192.168.1.10");
-            clientList.add("🔵 bidder2 (sub: 2) - 192.168.1.11");
-            clientList.add("🔵 bidder3 (sub: 5) - 192.168.1.12");
-            clientList.add("🔵 bidder4 (sub: 1) - 192.168.1.13");
-            clientList.add("🔵 bidder5 (sub: 4) - 192.168.1.14");
-            clientList.add("🔵 bidder6 (sub: 2) - 192.168.1.15");
-            clientList.add("🔵 bidder7 (sub: 3) - 192.168.1.16");
-            clientList.add("🟣 admin (sub: 0) - 192.168.1.5");
-            updateClientCount();
-            updateSubscriptionsCount();
         });
     }
 }

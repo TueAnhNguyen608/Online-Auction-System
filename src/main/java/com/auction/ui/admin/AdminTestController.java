@@ -8,6 +8,8 @@ import com.auction.server.repository.ItemRepository;
 import com.auction.server.repository.UserRepository;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -64,6 +66,8 @@ public class AdminTestController {
 
     @FXML
     public void initialize() {
+        System.out.println("📋 AdminTestController initialized");
+
         setupTableColumns();
         setupPriceFormat();
         setupStatusFormat();
@@ -72,16 +76,25 @@ public class AdminTestController {
         filteredList = new FilteredList<>(masterList, p -> true);
         tvProducts.setItems(filteredList);
 
+        System.out.println("✅ TableView setup completed");
+
         setupComboBoxes();
         setupFilterListeners();
 
+        // Kiểm tra kết nối database
         try {
             int itemCount = itemRepo.count();
+            System.out.println("📊 Database has " + itemCount + " items");
+            if (itemCount == 0) {
+                lblStatus.setText("⚠️ Database trống! Hãy chạy DataInitializer hoặc restart server để tạo dữ liệu mẫu.");
+            } else {
+                lblStatus.setText("✅ Connected to database (" + itemCount + " items)");
+            }
             loadItems();
-            lblStatus.setText("✅ Connected to database (" + itemCount + " items)");
         } catch (SQLException e) {
-            lblStatus.setText("❌ Database connection failed: " + e.getMessage());
+            System.err.println("❌ Database connection error: " + e.getMessage());
             e.printStackTrace();
+            lblStatus.setText("❌ Database connection failed: " + e.getMessage());
         }
 
         tvProducts.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
@@ -101,30 +114,47 @@ public class AdminTestController {
     }
 
     private void setupTableColumns() {
+        // STT column - dùng cellFactory để tính số thứ tự
         colSTT.setCellValueFactory(cellData ->
                 new SimpleIntegerProperty(filteredList.indexOf(cellData.getValue()) + 1).asObject()
         );
+
+        // Các column khác dùng PropertyValueFactory
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colStartPrice.setCellValueFactory(new PropertyValueFactory<>("startingPrice"));
         colCurrentPrice.setCellValueFactory(new PropertyValueFactory<>("currentPrice"));
         colSeller.setCellValueFactory(new PropertyValueFactory<>("sellerName"));
+        colBidCount.setCellValueFactory(new PropertyValueFactory<>("bidCount"));
+        colStatus.setCellValueFactory(cellData -> {
+            Item item = cellData.getValue();
+            String status = item.getStatus() != null ? item.getStatus().name() : "UNKNOWN";
+            return new SimpleStringProperty(status);
+        });
+
+        // Bidder column - xử lý null
         colBidder.setCellValueFactory(cellData -> {
             String bidder = cellData.getValue().getCurrentBidderName();
-            return new javafx.beans.property.SimpleStringProperty(
-                    (bidder == null || bidder.isEmpty()) ? "Chưa có" : bidder
-            );
+            return new SimpleStringProperty(bidder == null || bidder.isEmpty() ? "Chưa có" : bidder);
         });
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colBidCount.setCellValueFactory(new PropertyValueFactory<>("bidCount"));
+
+        System.out.println("✅ Table columns configured");
     }
 
     private void setupEndTimeFormat() {
+        colEndTime.setCellValueFactory(cellData -> {
+            Item item = cellData.getValue();
+            if (item != null && item.getEndTime() != null) {
+                return new SimpleStringProperty(item.getEndTime().format(END_TIME_FORMAT));
+            }
+            return new SimpleStringProperty("N/A");
+        });
+
         colEndTime.setCellFactory(col -> new TableCell<Item, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
+                if (empty || item == null) {
                     setText(null);
                     setStyle("");
                     return;
@@ -132,24 +162,21 @@ public class AdminTestController {
 
                 Item product = getTableView().getItems().get(getIndex());
                 if (product != null && product.getEndTime() != null) {
-                    LocalDateTime endTime = product.getEndTime();
-                    String endTimeStr = endTime.format(END_TIME_FORMAT);
-
                     if (product.isActive()) {
-                        long hoursLeft = LocalDateTime.now().until(endTime, ChronoUnit.HOURS);
+                        long hoursLeft = LocalDateTime.now().until(product.getEndTime(), ChronoUnit.HOURS);
                         if (hoursLeft < 24) {
-                            setText(endTimeStr + " ⏰");
+                            setText(item + " ⏰");
                             setStyle("-fx-text-fill: #e65100; -fx-font-weight: bold;");
                         } else {
-                            setText(endTimeStr);
+                            setText(item);
                             setStyle("-fx-text-fill: #2e7d32;");
                         }
                     } else {
-                        setText(endTimeStr);
+                        setText(item);
                         setStyle("-fx-text-fill: #757575;");
                     }
                 } else {
-                    setText("N/A");
+                    setText(item);
                 }
             }
         });
@@ -235,8 +262,11 @@ public class AdminTestController {
             }
             return true;
         });
-        tvProducts.refresh();
-        updateStatusMessage();
+
+        Platform.runLater(() -> {
+            tvProducts.refresh();
+            updateStatusMessage();
+        });
     }
 
     @FXML private void handleFilter() { applyFilter(); }
@@ -248,16 +278,33 @@ public class AdminTestController {
     }
 
     private void loadItems() {
+        System.out.println("📡 Admin: Loading items from database...");
         new Thread(() -> {
             try {
                 List<Item> items = itemRepo.findAll();
+                System.out.println("📡 Admin: Loaded " + items.size() + " items from database");
+
+                // Debug: in ra 3 sản phẩm đầu
+                for (int i = 0; i < Math.min(3, items.size()); i++) {
+                    System.out.println("   - " + items.get(i).getName() + " | " + items.get(i).getCurrentPrice());
+                }
+
                 Platform.runLater(() -> {
                     masterList.setAll(items);
+                    System.out.println("✅ masterList size: " + masterList.size());
                     updateStatusMessage();
+                    tvProducts.refresh();
+
+                    if (items.isEmpty()) {
+                        lblStatus.setText("⚠️ Không có sản phẩm nào! Hãy chạy DataInitializer để tạo dữ liệu mẫu.");
+                    } else {
+                        lblStatus.setText("✅ Đã tải " + items.size() + " sản phẩm");
+                    }
                 });
             } catch (SQLException e) {
-                Platform.runLater(() -> lblStatus.setText("❌ Lỗi tải: " + e.getMessage()));
+                System.err.println("❌ Admin: Error loading items: " + e.getMessage());
                 e.printStackTrace();
+                Platform.runLater(() -> lblStatus.setText("❌ Lỗi database: " + e.getMessage()));
             }
         }).start();
     }
@@ -276,7 +323,9 @@ public class AdminTestController {
 
     private void updateStatusMessage() {
         String time = LocalDateTime.now().format(TIME_FORMAT);
-        lblStatus.setText("🕐 " + time + " | 📦 " + filteredList.size() + "/" + masterList.size() + " sản phẩm");
+        Platform.runLater(() ->
+                lblStatus.setText("🕐 " + time + " | 📦 " + filteredList.size() + "/" + masterList.size() + " sản phẩm")
+        );
     }
 
     private void startRealtimeClock() {

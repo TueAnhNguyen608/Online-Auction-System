@@ -30,12 +30,12 @@ public class ClientConnectionHandler implements Runnable {
     private String currentUsername;
     private boolean isLoggedIn = false;
 
-    // 🔥 THÊM: Heartbeat tracking
+    // Heartbeat tracking
     private long lastHeartbeat;
     private volatile boolean heartbeatValid = true;
     private Thread timeoutChecker;
 
-    // 🔥 THÊM: Session manager
+    // Session manager
     private final SessionManagerService sessionManager = SessionManagerService.getInstance();
 
     private final Gson gson = new GsonBuilder()
@@ -45,6 +45,7 @@ public class ClientConnectionHandler implements Runnable {
     public ClientConnectionHandler(Socket socket) {
         this.socket = socket;
         this.lastHeartbeat = System.currentTimeMillis();
+        System.out.println("🔌 ClientConnectionHandler created for socket: " + socket.getRemoteSocketAddress());
     }
 
     @Override
@@ -53,41 +54,47 @@ public class ClientConnectionHandler implements Runnable {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            // 🔥 THÊM: Start timeout checker
+            System.out.println("✅ Streams initialized for client");
+
+            // Start timeout checker
             startTimeoutChecker();
 
             String line;
-            while ((line = in.readLine()) != null && heartbeatValid && isLoggedIn) {
+            while ((line = in.readLine()) != null && heartbeatValid) {
                 if (line.trim().isEmpty()) continue;
 
-                System.out.println("📨 Received: " + line);
+                System.out.println("📨 [RAW] Received: " + line);
 
-                // 🔥 THÊM: Update heartbeat
+                // Update heartbeat
                 lastHeartbeat = System.currentTimeMillis();
 
                 try {
                     Request request = gson.fromJson(line, Request.class);
+                    System.out.println("📨 [PARSED] Command: " + request.getCommand() + ", Data: " + request.getData());
 
-                    // 🔥 THÊM: Rate limiting check
-                    if (currentUserId != null &&
+                    // Rate limiting check (chỉ cho logged in users)
+                    if (currentUserId != null && request.getCommand() != CommandType.LOGIN &&
                             !RateLimiterService.getInstance().isAllowed(currentUserId)) {
                         String errorJson = gson.toJson(
                                 ResponseMessage.error(AuctionConstants.MSG_RATE_LIMIT));
                         out.println(errorJson);
                         out.flush();
+                        System.out.println("🚫 Rate limit exceeded for user: " + currentUsername);
                         continue;
                     }
 
-                    // 🔥 THÊM: Session timeout check
-                    if (currentUserId != null && !sessionManager.isSessionValid(currentUserId)) {
+                    // Session timeout check (chỉ cho logged in users)
+                    if (currentUserId != null && request.getCommand() != CommandType.LOGIN &&
+                            !sessionManager.isSessionValid(currentUserId)) {
                         String errorJson = gson.toJson(
                                 ResponseMessage.error(AuctionConstants.MSG_SESSION_EXPIRED));
                         out.println(errorJson);
                         out.flush();
+                        System.out.println("⏰ Session expired for user: " + currentUsername);
                         break;
                     }
 
-                    // 🔥 THÊM: Update session activity
+                    // Update session activity
                     if (currentUserId != null) {
                         sessionManager.updateActivity(currentUserId);
                     }
@@ -96,7 +103,7 @@ public class ClientConnectionHandler implements Runnable {
                     ResponseMessage response = dispatcher.dispatch(request, this);
 
                     String jsonResponse = gson.toJson(response);
-                    System.out.println("📤 Sending: " + jsonResponse);
+                    System.out.println("📤 Sending response: " + jsonResponse);
                     out.println(jsonResponse);
                     out.flush();
 
@@ -109,24 +116,36 @@ public class ClientConnectionHandler implements Runnable {
                         break;
                     }
                 } catch (Exception e) {
-                    System.err.println("Error: " + e.getMessage());
-                    String errorJson = gson.toJson(ResponseMessage.error(e.getMessage()));
+                    System.err.println("❌ Error processing request: " + e.getMessage());
+                    e.printStackTrace();
+                    String errorJson = gson.toJson(ResponseMessage.error("Lỗi xử lý: " + e.getMessage()));
                     out.println(errorJson);
                     out.flush();
                 }
             }
         } catch (IOException e) {
-            System.out.println("Client disconnected: " + e.getMessage());
+            System.out.println("❌ Client disconnected (IO Error): " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("❌ Unexpected error: " + e.getMessage());
+            e.printStackTrace();
         } finally {
+            System.out.println("🧹 Cleaning up client: " + (currentUsername != null ? currentUsername : "unknown"));
             if (currentUserId != null) {
                 sessionManager.removeSession(currentUserId);
             }
             EventBroadcaster.getInstance().cleanupClient(this);
-            try { socket.close(); } catch (IOException e) {}
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                System.err.println("Error closing socket: " + e.getMessage());
+            }
+            System.out.println("✅ Client cleanup completed");
         }
     }
 
-    // 🔥 THÊM: Timeout checker thread
+    // Timeout checker thread
     private void startTimeoutChecker() {
         timeoutChecker = new Thread(() -> {
             while (isLoggedIn && !Thread.currentThread().isInterrupted()) {
@@ -134,10 +153,12 @@ public class ClientConnectionHandler implements Runnable {
                     Thread.sleep(10000); // Kiểm tra mỗi 10 giây
                     long idleTime = System.currentTimeMillis() - lastHeartbeat;
                     if (idleTime > AuctionConstants.HEARTBEAT_TIMEOUT_SECONDS * 1000L) {
-                        System.out.println("⚠️ Client " + currentUsername + " heartbeat timeout!");
+                        System.out.println("⚠️ Client " + currentUsername + " heartbeat timeout! Idle: " + idleTime + "ms");
                         heartbeatValid = false;
                         try {
-                            socket.close();
+                            if (socket != null && !socket.isClosed()) {
+                                socket.close();
+                            }
                         } catch (IOException e) {
                             // Ignore
                         }
@@ -152,9 +173,10 @@ public class ClientConnectionHandler implements Runnable {
         timeoutChecker.start();
     }
 
-    // 🔥 THÊM: Update heartbeat từ KEEP_ALIVE
+    // Update heartbeat từ KEEP_ALIVE
     public void updateHeartbeat() {
         this.lastHeartbeat = System.currentTimeMillis();
+        System.out.println("💓 Heartbeat received from: " + currentUsername);
     }
 
     public String getCurrentUserId() { return currentUserId; }
@@ -166,12 +188,18 @@ public class ClientConnectionHandler implements Runnable {
         this.isLoggedIn = userId != null;
         if (userId != null) {
             sessionManager.createSession(userId);
+            System.out.println("✅ User logged in: " + currentUsername + " (ID: " + userId + ")");
         }
     }
-    public void setCurrentUsername(String username) { this.currentUsername = username; }
+
+    public void setCurrentUsername(String username) {
+        this.currentUsername = username;
+        System.out.println("👤 Set username: " + username);
+    }
 
     public void pushRealtimeUpdate(String message) {
         if (out != null && !out.checkError() && isLoggedIn && heartbeatValid) {
+            System.out.println("📢 Pushing realtime update to: " + currentUsername);
             out.println(message);
             out.flush();
         }
