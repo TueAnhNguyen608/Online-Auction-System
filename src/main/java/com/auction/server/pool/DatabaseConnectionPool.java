@@ -24,10 +24,9 @@ public class DatabaseConnectionPool {
     private final AtomicInteger activeConnections = new AtomicInteger(0);
     private final AtomicInteger totalConnections = new AtomicInteger(0);
 
-    // Retry configuration
     private static final int MAX_RETRY_COUNT = 5;
     private static final int RETRY_DELAY_MS = 2000;
-    private static final int MAX_TOTAL_CONNECTIONS = 100;
+    private static final int MAX_TOTAL_CONNECTIONS = 200;  // 🔥 TĂNG LÊN 200
     private static final int CONNECTION_TIMEOUT_MS = 5000;
 
     private DatabaseConnectionPool() {
@@ -47,7 +46,6 @@ public class DatabaseConnectionPool {
             throw new RuntimeException("MySQL Driver not found", e);
         }
 
-        // Initialize pool with retry
         boolean initialized = initializePoolWithRetry();
         if (!initialized) {
             System.err.println("❌ Failed to initialize connection pool after " +
@@ -70,7 +68,6 @@ public class DatabaseConnectionPool {
         return instance;
     }
 
-    // Initialize với retry
     private boolean initializePoolWithRetry() {
         for (int attempt = 1; attempt <= MAX_RETRY_COUNT; attempt++) {
             System.out.println("📡 Connecting to database... Attempt " + attempt + "/" + MAX_RETRY_COUNT);
@@ -85,10 +82,7 @@ public class DatabaseConnectionPool {
                             successCount++;
                             totalConnections.incrementAndGet();
                         } else {
-                            // Nếu không thể offer, close connection
-                            try {
-                                conn.close();
-                            } catch (SQLException ignored) {}
+                            try { conn.close(); } catch (SQLException ignored) {}
                         }
                     }
                 } catch (SQLException e) {
@@ -113,7 +107,6 @@ public class DatabaseConnectionPool {
                     Thread.currentThread().interrupt();
                     return false;
                 }
-                // Clear failed connections before retry
                 connectionPool.clear();
                 totalConnections.set(0);
             }
@@ -121,18 +114,15 @@ public class DatabaseConnectionPool {
         return false;
     }
 
-    // Tạo connection với timeout
     private Connection createConnectionWithTimeout(int timeoutMs) throws SQLException {
         java.util.Properties props = new java.util.Properties();
         props.setProperty("user", username);
         props.setProperty("password", password);
         props.setProperty("connectTimeout", String.valueOf(timeoutMs));
         props.setProperty("socketTimeout", String.valueOf(timeoutMs));
-
         return DriverManager.getConnection(url, props);
     }
 
-    // Kiểm tra connection còn valid
     private boolean isValidConnection(Connection conn) {
         try {
             return conn != null && !conn.isClosed() && conn.isValid(2);
@@ -141,7 +131,6 @@ public class DatabaseConnectionPool {
         }
     }
 
-    // Health checker
     private void startHealthChecker() {
         ScheduledExecutorService healthChecker = Executors.newSingleThreadScheduledExecutor();
         healthChecker.scheduleAtFixedRate(() -> {
@@ -161,9 +150,7 @@ public class DatabaseConnectionPool {
                                 totalConnections.incrementAndGet();
                                 System.out.println("✅ Added new connection. Total: " + totalConnections.get());
                             }
-                        } catch (SQLException e) {
-                            // Silent fail
-                        }
+                        } catch (SQLException e) {}
                     }
                 }
             } catch (Exception e) {
@@ -171,7 +158,6 @@ public class DatabaseConnectionPool {
             }
         }, 30, 30, TimeUnit.SECONDS);
 
-        // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(healthChecker::shutdown));
     }
 
@@ -222,6 +208,7 @@ public class DatabaseConnectionPool {
         }
     }
 
+    // 🔥 QUAN TRỌNG: Đảm bảo connection luôn được trả về pool
     public void returnConnection(Connection conn) {
         if (conn == null) return;
 
@@ -229,16 +216,12 @@ public class DatabaseConnectionPool {
             if (!isValidConnection(conn)) {
                 activeConnections.decrementAndGet();
                 totalConnections.decrementAndGet();
-                try {
-                    conn.close();
-                } catch (SQLException ignored) {}
+                try { conn.close(); } catch (SQLException ignored) {}
                 return;
             }
 
             if (!conn.getAutoCommit()) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ignored) {}
+                try { conn.rollback(); } catch (SQLException ignored) {}
                 conn.setAutoCommit(true);
             }
 
@@ -258,12 +241,7 @@ public class DatabaseConnectionPool {
         } catch (SQLException e) {
             System.err.println("Error returning connection: " + e.getMessage());
             activeConnections.decrementAndGet();
-            try {
-                conn.close();
-                totalConnections.decrementAndGet();
-            } catch (SQLException ex) {
-                // Ignore
-            }
+            try { conn.close(); totalConnections.decrementAndGet(); } catch (SQLException ex) {}
         }
     }
 
@@ -291,9 +269,7 @@ public class DatabaseConnectionPool {
     public boolean testConnection() {
         try (Connection conn = getConnection()) {
             boolean valid = conn != null && !conn.isClosed() && conn.isValid(2);
-            if (conn != null) {
-                returnConnection(conn);
-            }
+            if (conn != null) returnConnection(conn);
             return valid;
         } catch (SQLException e) {
             System.err.println("❌ Database connection test failed: " + e.getMessage());
