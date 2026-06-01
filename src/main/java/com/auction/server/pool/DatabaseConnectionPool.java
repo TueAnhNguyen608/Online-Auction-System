@@ -26,8 +26,9 @@ public class DatabaseConnectionPool {
 
     private static final int MAX_RETRY_COUNT = 5;
     private static final int RETRY_DELAY_MS = 2000;
-    private static final int MAX_TOTAL_CONNECTIONS = 200;  // 🔥 TĂNG LÊN 200
-    private static final int CONNECTION_TIMEOUT_MS = 5000;
+    // 🔥 TĂNG MAX TOTAL CONNECTIONS LÊN 500
+    private static final int MAX_TOTAL_CONNECTIONS = 500;
+    private static final int CONNECTION_TIMEOUT_MS = 10000;  // Tăng timeout
 
     private DatabaseConnectionPool() {
         this.url = AuctionConstants.DB_URL;
@@ -188,7 +189,7 @@ public class DatabaseConnectionPool {
         }
 
         try {
-            Connection conn = connectionPool.poll(10, TimeUnit.SECONDS);
+            Connection conn = connectionPool.poll(15, TimeUnit.SECONDS);  // Tăng timeout
             if (conn == null || !isValidConnection(conn)) {
                 if (totalConnections.get() < MAX_TOTAL_CONNECTIONS) {
                     conn = createConnectionWithTimeout(CONNECTION_TIMEOUT_MS);
@@ -208,7 +209,6 @@ public class DatabaseConnectionPool {
         }
     }
 
-    // 🔥 QUAN TRỌNG: Đảm bảo connection luôn được trả về pool
     public void returnConnection(Connection conn) {
         if (conn == null) return;
 

@@ -17,7 +17,6 @@ import com.auction.common.model.bidding.Bid;
 import com.auction.common.model.communication.CommandType;
 import com.auction.common.model.communication.Request;
 import com.auction.common.model.communication.ResponseMessage;
-// 🔥 THÊM 2 IMPORT NÀY ĐỂ SỬA LỖI
 import com.auction.common.model.user.User;
 import com.auction.common.model.item.Item;
 
@@ -30,12 +29,10 @@ public class AuctionClient {
     private Consumer<ResponseMessage> callback;
     private ScheduledExecutorService heartbeatExecutor;
 
-    // Lưu session để reconnect
     private String lastUsername;
     private String lastPassword;
     private final List<String> subscribedItems = new CopyOnWriteArrayList<>();
 
-    // Retry configuration
     private static final int MAX_RETRIES = 3;
     private static final int RETRY_DELAY_MS = 2000;
 
@@ -48,7 +45,7 @@ public class AuctionClient {
     public void connect(String host, int port) throws IOException {
         socket = new Socket(host, port);
         socket.setKeepAlive(true);
-        socket.setSoTimeout(60000);
+        socket.setSoTimeout(120000);
 
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -56,26 +53,16 @@ public class AuctionClient {
 
         System.out.println("✅ Connected to server at " + host + ":" + port);
 
-        startHeartbeat();
+        // 🔥 TẮT HEARTBEAT ĐỂ TRÁNH LỖI TIMEOUT
+        // startHeartbeat();
     }
 
-    // Heartbeat
+    // 🔥 TẮT HOÀN TOÀN HEARTBEAT
     private void startHeartbeat() {
-        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
-        heartbeatExecutor.scheduleAtFixedRate(() -> {
-            if (isConnected) {
-                try {
-                    sendRequest(CommandType.KEEP_ALIVE, null);
-                    System.out.println("💓 Heartbeat sent");
-                } catch (IOException e) {
-                    System.out.println("⚠️ Heartbeat failed: " + e.getMessage());
-                    isConnected = false;
-                }
-            }
-        }, 30, 30, TimeUnit.SECONDS);
+        // KHÔNG GỬI HEARTBEAT
+        return;
     }
 
-    // Lưu session
     public void saveSession(String username, String password, List<String> items) {
         this.lastUsername = username;
         this.lastPassword = password;
@@ -85,7 +72,6 @@ public class AuctionClient {
         }
     }
 
-    // Reconnect
     public void reconnect() throws IOException {
         if (socket != null && !socket.isClosed()) {
             String host = socket.getInetAddress().getHostName();
@@ -134,7 +120,6 @@ public class AuctionClient {
         }
     }
 
-    // Gửi request có retry
     public ResponseMessage sendRequestWithRetry(CommandType command, Object data) throws IOException {
         int retries = 0;
         Exception lastException = null;

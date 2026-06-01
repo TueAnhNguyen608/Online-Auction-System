@@ -1,5 +1,6 @@
 package com.auction.client;
 
+import com.auction.common.model.communication.ResponseCode;
 import com.auction.common.model.communication.ResponseMessage;
 
 public class TestClient {
@@ -15,13 +16,15 @@ public class TestClient {
             ResponseMessage loginResp = client.login("bidder1", "123456");
             System.out.println("   Result: " + loginResp.getCode() + " - " + loginResp.getMessage());
 
-            if (loginResp.getCode().getCode() == 200) {
+            if (loginResp.getCode() == ResponseCode.SUCCESS) {
                 System.out.println("✅ Login successful!");
 
                 System.out.println("\n[TEST] Getting active items...");
                 ResponseMessage itemsResp = client.getActiveItems();
                 System.out.println("   Result: " + itemsResp.getMessage());
                 System.out.println("   Data: " + itemsResp.getData());
+            } else {
+                System.out.println("❌ Login failed: " + loginResp.getMessage());
             }
 
             client.disconnect();

@@ -46,7 +46,7 @@ public final class AuctionConstants {
     public static final String DB_USER = "root";
     public static final String DB_PASSWORD = "Nhom7123456";
 
-    // 🔥 SỬA: Tăng pool size từ 50 lên 100
+    // 🔥 GIẢM POOL SIZE XUỐNG 100
     public static final int DB_POOL_SIZE = 100;
     public static final int DB_MIN_POOL_SIZE = 5;
 
@@ -55,8 +55,8 @@ public final class AuctionConstants {
     public static final int TIME_BROADCAST_INTERVAL_SECONDS = 1;
 
     // ========== SOCKET ==========
-    public static final int SOCKET_TIMEOUT_MS = 30000;
-    public static final int HEARTBEAT_INTERVAL_MS = 30000;
+    public static final int SOCKET_TIMEOUT_MS = 60000;
+    public static final int HEARTBEAT_INTERVAL_MS = 60000;
 
     // ========== MESSAGES ==========
     public static final String MSG_LOGIN_SUCCESS = "Đăng nhập thành công";

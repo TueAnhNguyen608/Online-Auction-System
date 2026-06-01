@@ -8,7 +8,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.auction.common.LocalDateTimeAdapter;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -54,7 +56,6 @@ public class CompleteTest {
                 return;
             }
 
-            // 🔥 SỬA: Parse dữ liệu đúng cách
             Type itemListType = new TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
             List<Map<String, Object>> itemsMap = gson.fromJson(
                     gson.toJson(itemsResp.getData()), itemListType);
@@ -65,7 +66,6 @@ public class CompleteTest {
                 return;
             }
 
-            // Lấy sản phẩm đầu tiên
             Map<String, Object> firstItem = itemsMap.get(0);
             testItemId = (String) firstItem.get("id");
             testItemName = (String) firstItem.get("name");
@@ -88,8 +88,8 @@ public class CompleteTest {
             System.out.println("─────────────────────────────────────────");
             testAutoBid();
 
-            // ========== PHẦN 4: TEST ANTI-SNIPING ==========
-            System.out.println("\n📌 PHẨN 4: TEST ANTI-SNIPING");
+            // ========== PHẦN 4: TEST ANTI-SNIPING (THỰC TẾ) ==========
+            System.out.println("\n📌 PHẦN 4: TEST ANTI-SNIPING (THỰC TẾ)");
             System.out.println("─────────────────────────────────────────");
             testAntiSniping();
 
@@ -113,7 +113,6 @@ public class CompleteTest {
         }
     }
 
-    // Lấy giá hiện tại của item
     private static double getCurrentPrice(AuctionClient client) throws Exception {
         ResponseMessage resp = client.getActiveItems();
         Type itemListType = new TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
@@ -128,7 +127,6 @@ public class CompleteTest {
         return startingPrice;
     }
 
-    // ========== TEST 1: Đấu giá cơ bản ==========
     private static void testBasicBidding() throws Exception {
         AuctionClient bidder = new AuctionClient();
         bidder.connect(SERVER_HOST, SERVER_PORT);
@@ -162,7 +160,6 @@ public class CompleteTest {
         bidder.disconnect();
     }
 
-    // ========== TEST 2: Auto-Bid ==========
     private static void testAutoBid() throws Exception {
         AuctionClient bidderX = new AuctionClient();
         bidderX.connect(SERVER_HOST, SERVER_PORT);
@@ -206,25 +203,106 @@ public class CompleteTest {
         bidderY.disconnect();
     }
 
-    // ========== TEST 3: Anti-Sniping ==========
+    // ========== TEST 3: Anti-Sniping (THỰC TẾ) ==========
     private static void testAntiSniping() throws Exception {
-        System.out.println("   ⏰ Anti-sniping: Khi có người đặt giá trong 30 giây cuối");
-        System.out.println("   ⏰ Hệ thống sẽ tự động gia hạn thêm 60 giây");
-        System.out.println("   💡 Logic này được xử lý trong BiddingService.placeBid()");
-        System.out.println("   ✅ Đã được cài đặt và hoạt động đúng!");
+        System.out.println("   ⏰ Anti-sniping: KIỂM TRA THỰC TẾ");
 
-        System.out.println("\n   📖 GIẢI THÍCH LOGIC ANTI-SNIPING:");
-        System.out.println("   ┌─────────────────────────────────────────────────────────────────┐");
-        System.out.println("   │ if (secondsLeft <= SNIPING_WINDOW_SECONDS && secondsLeft > 0) { │");
-        System.out.println("   │     itemRepo.extendEndTime(itemId, EXTENSION_SECONDS, conn);    │");
-        System.out.println("   │     extended = true;                                            │");
-        System.out.println("   │ }                                                               │");
-        System.out.println("   └─────────────────────────────────────────────────────────────────┘");
-        System.out.println("   - SNIPING_WINDOW_SECONDS = 30 giây");
-        System.out.println("   - EXTENSION_SECONDS = 60 giây");
+        AuctionClient client = new AuctionClient();
+        client.connect(SERVER_HOST, SERVER_PORT);
+        ResponseMessage loginResp = client.login("bidder1", PASSWORD);
+
+        if (loginResp.getCode() != ResponseCode.SUCCESS) {
+            System.out.println("   ❌ Đăng nhập thất bại: " + loginResp.getMessage());
+            client.disconnect();
+            return;
+        }
+
+        // Lấy thông tin item hiện tại
+        double currentPrice = getCurrentPrice(client);
+
+        // Lấy thời gian kết thúc hiện tại
+        ResponseMessage itemsResp = client.getActiveItems();
+        Type itemListType = new TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
+        List<Map<String, Object>> items = gson.fromJson(gson.toJson(itemsResp.getData()), itemListType);
+
+        long endTimeBefore = 0;
+        for (Map<String, Object> item : items) {
+            if (testItemId.equals(item.get("id"))) {
+                Object endTimeObj = item.get("endTime");
+                if (endTimeObj != null) {
+                    String endTimeStr = endTimeObj.toString();
+                    try {
+                        LocalDateTime endTime = LocalDateTime.parse(endTimeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                        endTimeBefore = Duration.between(LocalDateTime.now(), endTime).getSeconds();
+                    } catch (Exception e) {
+                        // Bỏ qua lỗi parse
+                    }
+                }
+                break;
+            }
+        }
+
+        System.out.println("   ⏰ Thời gian còn lại trước khi đặt: " + endTimeBefore + " giây");
+        System.out.println("   💰 Giá hiện tại: " + String.format("%,.0f", currentPrice) + " VND");
+
+        // Đặt giá
+        double bidAmount = currentPrice + 1000000;
+        System.out.println("   👤 Đặt giá: " + String.format("%,.0f", bidAmount) + " VND");
+
+        Bid bid = new Bid();
+        bid.setItemId(testItemId);
+        bid.setAmount(bidAmount);
+
+        long startTime = System.currentTimeMillis();
+        ResponseMessage resp = client.placeBid(bid);
+        long placeBidEndTime = System.currentTimeMillis();  // 🔥 ĐỔI TÊN BIẾN
+
+        System.out.println("   📝 Kết quả: " + resp.getMessage() + " (" + (placeBidEndTime - startTime) + "ms)");
+
+        // Đợi database cập nhật
+        Thread.sleep(1000);
+
+        // Lấy thời gian kết thúc sau khi đặt
+        itemsResp = client.getActiveItems();
+        items = gson.fromJson(gson.toJson(itemsResp.getData()), itemListType);
+
+        long endTimeAfter = 0;
+        for (Map<String, Object> item : items) {
+            if (testItemId.equals(item.get("id"))) {
+                Object endTimeObj = item.get("endTime");
+                if (endTimeObj != null) {
+                    String endTimeStr = endTimeObj.toString();
+                    try {
+                        LocalDateTime endTime = LocalDateTime.parse(endTimeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                        endTimeAfter = Duration.between(LocalDateTime.now(), endTime).getSeconds();
+                    } catch (Exception e) {
+                        // Bỏ qua lỗi parse
+                    }
+                }
+                break;
+            }
+        }
+
+        System.out.println("   ⏰ Thời gian còn lại sau khi đặt: " + endTimeAfter + " giây");
+
+        // Kiểm tra kết quả
+        if (endTimeBefore <= 30 && endTimeBefore > 0) {
+            if (endTimeAfter > endTimeBefore) {
+                System.out.println("   ✅ Anti-Sniping ĐÃ KÍCH HOẠT! Được gia hạn thêm " + (endTimeAfter - endTimeBefore) + " giây.");
+            } else {
+                System.out.println("   ❌ Anti-Sniping KHÔNG kích hoạt! Cần kiểm tra logic.");
+            }
+        } else {
+            if (endTimeAfter == endTimeBefore - 1 || endTimeAfter == endTimeBefore) {
+                System.out.println("   ✅ Đúng: Không gia hạn vì còn >30 giây.");
+            } else {
+                System.out.println("   ⚠️ Có sự thay đổi bất thường về thời gian.");
+            }
+        }
+
+        client.disconnect();
     }
 
-    // ========== TEST 4: Nhiều người đấu giá cùng lúc ==========
     private static void testConcurrentBidding() throws Exception {
         int threadCount = 7;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -293,7 +371,6 @@ public class CompleteTest {
         checker.connect(SERVER_HOST, SERVER_PORT);
         double finalPrice = getCurrentPrice(checker);
 
-        // Lấy người thắng
         ResponseMessage itemsResp = checker.getActiveItems();
         Type itemListType = new TypeToken<ArrayList<Map<String, Object>>>(){}.getType();
         List<Map<String, Object>> items = gson.fromJson(gson.toJson(itemsResp.getData()), itemListType);
@@ -312,7 +389,6 @@ public class CompleteTest {
         checker.disconnect();
     }
 
-    // ========== TEST 5: Auto-Bid tranh chấp ==========
     private static void testCompetitiveAutoBid() throws Exception {
         AuctionClient bidderA = new AuctionClient();
         bidderA.connect(SERVER_HOST, SERVER_PORT);
