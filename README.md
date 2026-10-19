@@ -1,15 +1,5 @@
 \# Hệ thống đấu giá trực tuyến
 
-
-
-\## Thành viên
-
-\- Nguyễn Thị Tuệ Anh
-\- Đặng Thị Lan Oanh
-\- Nguyễn Thu Huyền
-
-
-
 \## Công nghệ
 
 \- Java
